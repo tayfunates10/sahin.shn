@@ -1,0 +1,7 @@
+ad = "Şahin"
+aktif = evet
+bildiri <- "Merhaba, yeni nesil programlama dili."
+
+yaz bildiri
+yaz ad
+yaz aktif
