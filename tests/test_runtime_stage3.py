@@ -4,14 +4,12 @@ import pytest
 
 from sahin.ast_nodes import (
     Assignment,
-    Binding,
     Literal,
     Name,
     Pipeline,
     PipelineStage,
     Program,
     SourceLocation,
-    Write,
 )
 from sahin.lexer import tokenize
 from sahin.parser import parse
@@ -74,8 +72,8 @@ def test_runtime_error_contains_sahin_source_location_and_flow_chain():
     source = """akış iç
     yaz bulunmayan
 akış dış
-    iç()
-dış()
+    iç_sonucu = iç()
+dış_sonucu = dış()
 """
     with pytest.raises(RuntimeErrorSHN) as captured:
         run(source)
@@ -128,7 +126,7 @@ def test_nearest_name_regression_still_works_in_nested_scope():
     source = """ürün = "Kalem"
 akış göster
     yaz ürn
-göster()
+göster_sonucu = göster()
 """
     with pytest.raises(RuntimeErrorSHN, match="ürün"):
         run(source)
