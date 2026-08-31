@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .semantics import TypeKind
+from .types import TypeKind
 
 
 @dataclass(frozen=True, slots=True)

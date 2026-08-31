@@ -60,10 +60,10 @@ Bu örnek herhangi bir HTML etiketi, CSS seçicisi, JavaScript fonksiyonu veya S
 
 ## Durum
 
-**Genel ilerleme: %32**
+**Genel ilerleme: %42**
 
-Tamamlanan son kalite kapısı: **Aşama 3 — Çalıştırma motoru + hata modeli**  
-Sıradaki aşama: **Aşama 4 — Tip sistemi + güvenlik**
+Tamamlanan son kalite kapısı: **Aşama 4 — Tip sistemi + güvenlik**  
+Sıradaki aşama: **Aşama 5 — Standart kütüphane**
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -75,8 +75,8 @@ Sıradaki aşama: **Aşama 4 — Tip sistemi + güvenlik**
 | 1 — Dil anayasası + sözdizimi çekirdeği | %10 | ✅ |
 | 2 — Parser + ifade sistemi + semantik çekirdek | %22 | ✅ |
 | 3 — Çalıştırma motoru + hata modeli | %32 | ✅ |
-| 4 — Tip sistemi + güvenlik | %42 | 🚧 Devam ediyor |
-| 5 — Standart kütüphane | %51 | ⏳ |
+| 4 — Tip sistemi + güvenlik | %42 | ✅ |
+| 5 — Standart kütüphane | %51 | 🚧 Sıradaki |
 | 6 — Arayüz + görünüm motoru | %62 | ⏳ |
 | 7 — Sunucu + API + veri motoru | %73 | ⏳ |
 | 8 — Modül + paket ekosistemi | %80 | ⏳ |
@@ -111,17 +111,19 @@ Ayrıntılı alt aşamalar ve kabul kriterleri: [`docs/ROADMAP.md`](docs/ROADMAP
 - İlk CI denemesinde çıplak `akış()` statement parser sınırı testte tespit edildi; test mevcut v0.1 çağrı ifadesi sözleşmesine göre düzeltilip kalite kapısı yeniden çalıştırıldı
 - Python 3.11 / 3.12 / 3.13 CI: yeşil
 
-## Aşama 4 doğrulanmış alt ilerleme
+## Aşama 4 doğrulaması
 
 - Parametre/dönüş tipi doğrulaması ve atama güvenliği
 - `<-` Binding tip bütünlüğü
 - Varsayılan-kapalı capability güvenlik çekirdeği
 - `TypeSpec` birleşik/opsiyonel tip modeli (`X veya yok`)
-- `yok` içeren tipler için ayrı flow-type ortamı ve iki dala güvenli daraltma
-- Daraltılmamış opsiyonel değerde alan erişimini engelleyen `SHN-T302` diagnostic sözleşmesi
-- Opsiyonel sözleşmede uyumlu/uyumsuz atama regression testleri
-
-**Aşama 4 henüz tamamlanmadı.** Parserın `X veya yok` tip yazımını doğrudan kabul etmesi ve ana `SemanticAnalyzer`ın `TypeSpec`/flow ortamını kullanması doğrulanmadan genel ilerleme %42'ye çıkarılmayacaktır.
+- Parserda `X veya yok` sözleşmesinin parametre/dönüş/kayıt alanında korunması
+- Ana `SemanticAnalyzer` içinde `TypeSpec` parametre, dönüş ve değer sözleşmeleri
+- `değer yok ise / yoksa` iki dalında flow-sensitive güvenli daraltma
+- Daraltılmamış opsiyonel değerde alan erişimini engelleyen `SHN-T302`
+- Opsiyonel atama/dönüş için olumlu ve olumsuz regression testleri
+- Atomik `TypeKind` çekirdeği ayrıştırılarak semantik/flow katmanındaki döngüsel bağımlılık kaldırıldı
+- Python 3.11 / 3.12 / 3.13 compile + test + `.shn` smoke CI: yeşil
 
 ## Kalite ve geliştirme akışı
 
