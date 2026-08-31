@@ -60,10 +60,10 @@ Bu örnek herhangi bir HTML etiketi, CSS seçicisi, JavaScript fonksiyonu veya S
 
 ## Durum
 
-**Genel ilerleme: %22**
+**Genel ilerleme: %32**
 
-Tamamlanan son kalite kapısı: **Aşama 2 — Parser + ifade sistemi + semantik çekirdek**  
-Sıradaki aşama: **Aşama 3 — Çalıştırma motoru + hata modeli**
+Tamamlanan son kalite kapısı: **Aşama 3 — Çalıştırma motoru + hata modeli**  
+Sıradaki aşama: **Aşama 4 — Tip sistemi + güvenlik**
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -74,8 +74,8 @@ Sıradaki aşama: **Aşama 3 — Çalıştırma motoru + hata modeli**
 | 0 — Proje temeli | %3 | ✅ |
 | 1 — Dil anayasası + sözdizimi çekirdeği | %10 | ✅ |
 | 2 — Parser + ifade sistemi + semantik çekirdek | %22 | ✅ |
-| 3 — Çalıştırma motoru + hata modeli | %32 | 🚧 Sıradaki |
-| 4 — Tip sistemi + güvenlik | %42 | ⏳ |
+| 3 — Çalıştırma motoru + hata modeli | %32 | ✅ |
+| 4 — Tip sistemi + güvenlik | %42 | 🚧 Sıradaki |
 | 5 — Standart kütüphane | %51 | ⏳ |
 | 6 — Arayüz + görünüm motoru | %62 | ⏳ |
 | 7 — Sunucu + API + veri motoru | %73 | ⏳ |
@@ -97,6 +97,18 @@ Ayrıntılı alt aşamalar ve kabul kriterleri: [`docs/ROADMAP.md`](docs/ROADMAP
 - Golden AST sözleşmesi
 - Unicode NFC + 100 varyant deterministik property testi
 - Karşılaştırma operatörleri regression testi
+- Python 3.11 / 3.12 / 3.13 CI: yeşil
+
+## Aşama 3 doğrulaması
+
+- Lexical `Frame`/scope çalışma modeli
+- Şahin `FlowValue` üzerinden `akış` çağrıları ve parametre bağlama
+- `ver`, binary/unary ifadeler ve lexical kapanım
+- `ise/yoksa`, `her`, kapsayıcı `..`, `duruma göre`, `dene/olmazsa`, `bitir`
+- `<-` bağlamalarının normal `=` ile yeniden atanmasını engelleyen ayrı runtime sözleşmesi
+- `seç`, `sırala`, `ilk` pipeline çekirdeği
+- Türkçe kaynak satır/sütun bilgili runtime hata modeli ve Şahin akış zinciri
+- İlk CI denemesinde çıplak `akış()` statement parser sınırı testte tespit edildi; test mevcut v0.1 çağrı ifadesi sözleşmesine göre düzeltilip kalite kapısı yeniden çalıştırıldı
 - Python 3.11 / 3.12 / 3.13 CI: yeşil
 
 ## Kalite ve geliştirme akışı
