@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from .ast_nodes import Assignment, Literal, Name, Program, Write
+from .ast_nodes import Assignment, Binding, Literal, Name, Program, Write
 
 
 class RuntimeErrorSHN(RuntimeError):
@@ -16,9 +16,13 @@ class Runtime:
 
     def execute(self, program: Program) -> dict[str, object]:
         for statement in program.statements:
+            if isinstance(statement, Binding):
+                # Aşama 2 referans runtime'ında kaynak bir kez çözülür. Reaktif
+                # yeniden değerlendirme Aşama 3 runtime sözleşmesinde eklenecek.
+                self.values[statement.name] = self._evaluate(statement.source)
+                continue
+
             if isinstance(statement, Assignment):
-                # v0.1 bootstrap'ta '<-' tek seferlik çözülür; reaktif bağlama
-                # semantiği veri/ekran çalışma zamanı geldiğinde uygulanacaktır.
                 self.values[statement.name] = self._evaluate(statement.expression)
                 continue
 
