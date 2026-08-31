@@ -34,7 +34,8 @@ class TypeKind(str, Enum):
     YAZI = "yazı"
     SAYI = "sayı"
     ONDALIK = "ondalık"
-    MANTIK = "mantık"
+    PARA = "para"
+    MANTIK = "evet_hayır"
     YOK = "yok"
     AKIS = "akış"
     KAYIT = "kayıt"
@@ -42,6 +43,9 @@ class TypeKind(str, Enum):
     GORUNUM = "görünüm"
     UYGULAMA = "uygulama"
     BILINMEYEN = "bilinmeyen"
+
+
+_NUMERIC = {TypeKind.SAYI, TypeKind.ONDALIK, TypeKind.PARA}
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +70,8 @@ class Symbol:
     kind: str = "değer"
     binding: bool = False
     location: SourceLocation | None = None
+    parameter_types: tuple[TypeKind, ...] = ()
+    return_type: TypeKind = TypeKind.BILINMEYEN
 
 
 @dataclass(slots=True)
@@ -110,7 +116,7 @@ _DECLARATION_TYPES = {
 
 
 class SemanticAnalyzer:
-    """Şahin AST üzerinde isim çözümleme ve ilk tip çıkarımı katmanı."""
+    """Şahin AST üzerinde isim çözümleme, tip çıkarımı ve tip güvenliği katmanı."""
 
     def __init__(self) -> None:
         self.global_scope = Scope()
@@ -124,23 +130,30 @@ class SemanticAnalyzer:
 
     def _predeclare(self, program: Program) -> None:
         for statement in program.statements:
-            if isinstance(statement, Declaration) and statement.name:
-                if statement.name in self.global_scope.symbols:
-                    self._diagnose(
-                        f"{statement.name!r} adı birden fazla üst seviye tanımda kullanılmış.",
-                        statement.location,
-                        "SHN-S101",
-                    )
-                    continue
-                self.global_scope.symbols[statement.name] = Symbol(
-                    statement.name,
-                    _DECLARATION_TYPES.get(statement.kind, TypeKind.BILINMEYEN),
-                    statement.kind,
-                    False,
+            if not isinstance(statement, Declaration) or not statement.name:
+                continue
+            if statement.name in self.global_scope.symbols:
+                self._diagnose(
+                    f"{statement.name!r} adı birden fazla üst seviye tanımda kullanılmış.",
                     statement.location,
+                    "SHN-S101",
                 )
+                continue
+            parameter_types = tuple(
+                self._type_from_name(parameter.type_name) for parameter in statement.parameters
+            )
+            return_type = self._type_from_name(statement.return_type)
+            self.global_scope.symbols[statement.name] = Symbol(
+                statement.name,
+                _DECLARATION_TYPES.get(statement.kind, TypeKind.BILINMEYEN),
+                statement.kind,
+                False,
+                statement.location,
+                parameter_types,
+                return_type,
+            )
 
-    def _statement(self, statement, scope: Scope) -> None:
+    def _statement(self, statement, scope: Scope, expected_return: TypeKind = TypeKind.BILINMEYEN) -> None:
         if isinstance(statement, Binding):
             inferred = self._expression(statement.source, scope)
             if statement.name in scope.symbols:
@@ -150,18 +163,12 @@ class SemanticAnalyzer:
                     "SHN-S202",
                 )
                 return
-            scope.symbols[statement.name] = Symbol(
-                statement.name,
-                inferred,
-                "bağlama",
-                True,
-                statement.location,
-            )
+            scope.symbols[statement.name] = Symbol(statement.name, inferred, "bağlama", True, statement.location)
             return
 
         if isinstance(statement, Assignment):
             inferred = self._expression(statement.expression, scope)
-            existing = scope.symbols.get(statement.name)
+            existing = scope.resolve(statement.name)
             if existing is not None and existing.binding:
                 self._diagnose(
                     f"{statement.name!r} '<-' ile bağlı bir değerdir; doğrudan '=' ile değiştirilemez.",
@@ -169,13 +176,14 @@ class SemanticAnalyzer:
                     "SHN-S201",
                 )
                 return
-            scope.symbols[statement.name] = Symbol(
-                statement.name,
-                inferred,
-                "değer",
-                False,
-                statement.location,
-            )
+            if existing is not None and not self._compatible(existing.type_kind, inferred):
+                self._diagnose(
+                    f"{statement.name!r} {existing.type_kind.value} olarak belirlendi; {inferred.value} değer atanamaz.",
+                    statement.location,
+                    "SHN-T201",
+                )
+                return
+            scope.symbols[statement.name] = Symbol(statement.name, inferred, "değer", False, statement.location)
             return
 
         if isinstance(statement, Write):
@@ -192,10 +200,12 @@ class SemanticAnalyzer:
                     False,
                     parameter.location,
                 )
+            declared_return = self._type_from_name(statement.return_type)
             for nested in statement.body:
-                self._statement(nested, child)
+                self._statement(nested, child, declared_return)
             if statement.inline_expression is not None:
-                self._expression(statement.inline_expression, child)
+                inline_type = self._expression(statement.inline_expression, child)
+                self._check_return_type(inline_type, declared_return, statement.location)
             return
 
         if isinstance(statement, FieldDeclaration):
@@ -209,50 +219,49 @@ class SemanticAnalyzer:
             return
 
         if isinstance(statement, IfStatement):
-            self._expression(statement.condition, scope)
+            condition_type = self._expression(statement.condition, scope)
+            if condition_type not in {TypeKind.MANTIK, TypeKind.BILINMEYEN}:
+                self._diagnose("'ise' koşulu evet/hayır sonucu üretmelidir.", statement.location, "SHN-T401")
             yes_scope = Scope(scope)
-            for nested in statement.body:
-                self._statement(nested, yes_scope)
             no_scope = Scope(scope)
+            self._apply_narrowing(statement.condition, yes_scope, no_scope)
+            for nested in statement.body:
+                self._statement(nested, yes_scope, expected_return)
             for nested in statement.else_body:
-                self._statement(nested, no_scope)
+                self._statement(nested, no_scope, expected_return)
             return
 
         if isinstance(statement, ForEach):
             self._expression(statement.iterable, scope)
             child = Scope(scope)
-            child.symbols[statement.name] = Symbol(
-                statement.name,
-                TypeKind.BILINMEYEN,
-                "yineleme",
-                False,
-                statement.location,
-            )
+            child.symbols[statement.name] = Symbol(statement.name, TypeKind.BILINMEYEN, "yineleme", False, statement.location)
             for nested in statement.body:
-                self._statement(nested, child)
+                self._statement(nested, child, expected_return)
             return
 
         if isinstance(statement, MatchStatement):
             self._expression(statement.subject, scope)
             for case in statement.cases:
                 child = Scope(scope)
-                self._statement(case.statement, child)
+                self._statement(case.statement, child, expected_return)
             return
 
         if isinstance(statement, TryStatement):
             body_scope = Scope(scope)
             for nested in statement.body:
-                self._statement(nested, body_scope)
+                self._statement(nested, body_scope, expected_return)
             error_scope = Scope(scope)
             if statement.error_name:
-                error_scope.symbols[statement.error_name] = Symbol(
-                    statement.error_name, TypeKind.BILINMEYEN, "hata"
-                )
+                error_scope.symbols[statement.error_name] = Symbol(statement.error_name, TypeKind.BILINMEYEN, "hata")
             for nested in statement.except_body:
-                self._statement(nested, error_scope)
+                self._statement(nested, error_scope, expected_return)
             return
 
         if isinstance(statement, Command):
+            if statement.name == "ver" and statement.arguments:
+                actual = self._expression(statement.arguments[0], scope)
+                self._check_return_type(actual, expected_return, statement.location)
+                return
             if statement.subject is not None:
                 self._expression(statement.subject, scope)
             for argument in statement.arguments:
@@ -262,12 +271,10 @@ class SemanticAnalyzer:
                 self._expression(statement.arrow, scope)
             child = Scope(scope)
             for nested in statement.body:
-                self._statement(nested, child)
+                self._statement(nested, child, expected_return)
             return
 
-    def _expression(
-        self, expression, scope: Scope, *, allow_implicit_names: bool = False
-    ) -> TypeKind:
+    def _expression(self, expression, scope: Scope, *, allow_implicit_names: bool = False) -> TypeKind:
         if isinstance(expression, Literal):
             return self._literal_type(expression.value)
 
@@ -277,12 +284,8 @@ class SemanticAnalyzer:
                 return symbol.type_kind
             if allow_implicit_names:
                 return TypeKind.BILINMEYEN
-            suggestion = get_close_matches(
-                expression.value, scope.visible_names(), n=1, cutoff=0.6
-            )
-            suffix = (
-                f" Şunu mu demek istediniz: {suggestion[0]}?" if suggestion else ""
-            )
+            suggestion = get_close_matches(expression.value, scope.visible_names(), n=1, cutoff=0.6)
+            suffix = f" Şunu mu demek istediniz: {suggestion[0]}?" if suggestion else ""
             self._diagnose(
                 f"{expression.value!r} adı bu kapsamda tanımlı değil.{suffix}",
                 expression.location,
@@ -291,47 +294,78 @@ class SemanticAnalyzer:
             return TypeKind.BILINMEYEN
 
         if isinstance(expression, Member):
-            self._expression(expression.target, scope, allow_implicit_names=allow_implicit_names)
+            target_type = self._expression(expression.target, scope, allow_implicit_names=allow_implicit_names)
+            if target_type is TypeKind.YOK:
+                self._diagnose(
+                    "'yok' değerinin bir alanına erişilemez; önce değerin varlığını doğrulayın.",
+                    expression.location,
+                    "SHN-T301",
+                )
             return TypeKind.BILINMEYEN
 
         if isinstance(expression, Call):
-            self._expression(expression.callee, scope, allow_implicit_names=allow_implicit_names)
-            for argument in expression.arguments:
+            callee_type = self._expression(expression.callee, scope, allow_implicit_names=allow_implicit_names)
+            argument_types = tuple(
                 self._expression(argument, scope, allow_implicit_names=allow_implicit_names)
-            return TypeKind.BILINMEYEN
+                for argument in expression.arguments
+            )
+            if isinstance(expression.callee, Name):
+                symbol = scope.resolve(expression.callee.value)
+                if symbol is not None and symbol.kind == "akış":
+                    self._check_call(symbol, argument_types, expression.location)
+                    return symbol.return_type
+            return TypeKind.BILINMEYEN if callee_type is TypeKind.BILINMEYEN else TypeKind.BILINMEYEN
 
         if isinstance(expression, Unary):
-            operand_type = self._expression(
-                expression.operand, scope, allow_implicit_names=allow_implicit_names
-            )
+            operand_type = self._expression(expression.operand, scope, allow_implicit_names=allow_implicit_names)
             if expression.operator in {"!", "değil"}:
+                if operand_type not in {TypeKind.MANTIK, TypeKind.BILINMEYEN}:
+                    self._diagnose("'değil' yalnızca evet/hayır değerine uygulanabilir.", expression.location, "SHN-T402")
                 return TypeKind.MANTIK
+            if expression.operator in {"+", "-"} and operand_type not in _NUMERIC | {TypeKind.BILINMEYEN}:
+                self._diagnose("Sayısal tekli işlem yalnızca sayı/ondalık/para üzerinde kullanılabilir.", expression.location, "SHN-T403")
             return operand_type
 
         if isinstance(expression, Binary):
-            left = self._expression(
-                expression.left, scope, allow_implicit_names=allow_implicit_names
-            )
-            right = self._expression(
-                expression.right, scope, allow_implicit_names=allow_implicit_names
-            )
-            if expression.operator in {"==", "!=", "<", "<=", ">", ">=", "ve", "veya"}:
+            left = self._expression(expression.left, scope, allow_implicit_names=allow_implicit_names)
+            right = self._expression(expression.right, scope, allow_implicit_names=allow_implicit_names)
+            op = expression.operator
+            if op in {"ve", "veya"}:
+                if left not in {TypeKind.MANTIK, TypeKind.BILINMEYEN} or right not in {TypeKind.MANTIK, TypeKind.BILINMEYEN}:
+                    self._diagnose("'ve/veya' yalnızca evet/hayır değerleriyle kullanılabilir.", expression.location, "SHN-T404")
                 return TypeKind.MANTIK
-            if TypeKind.ONDALIK in {left, right}:
-                return TypeKind.ONDALIK
-            if left is TypeKind.SAYI and right is TypeKind.SAYI:
-                return TypeKind.SAYI
+            if op in {"==", "!="}:
+                if not self._comparable(left, right):
+                    self._diagnose(f"{left.value} ile {right.value} karşılaştırılamaz.", expression.location, "SHN-T405")
+                return TypeKind.MANTIK
+            if op in {"<", "<=", ">", ">="}:
+                if not (left in _NUMERIC and right in _NUMERIC) and TypeKind.BILINMEYEN not in {left, right}:
+                    self._diagnose("Sıralı karşılaştırma iki sayısal değer gerektirir.", expression.location, "SHN-T406")
+                return TypeKind.MANTIK
+            if op in {"+", "-", "*", "/", "%"}:
+                if op == "+" and left is TypeKind.YAZI and right is TypeKind.YAZI:
+                    return TypeKind.YAZI
+                if TypeKind.BILINMEYEN not in {left, right} and not (left in _NUMERIC and right in _NUMERIC):
+                    self._diagnose("Aritmetik işlem uyumlu sayısal değerler gerektirir.", expression.location, "SHN-T407")
+                    return TypeKind.BILINMEYEN
+                if TypeKind.PARA in {left, right}:
+                    return TypeKind.PARA
+                if TypeKind.ONDALIK in {left, right} or op == "/":
+                    return TypeKind.ONDALIK
+                if left is TypeKind.SAYI and right is TypeKind.SAYI:
+                    return TypeKind.SAYI
+                return TypeKind.BILINMEYEN
             return TypeKind.BILINMEYEN
 
         if isinstance(expression, Predicate):
-            self._expression(
-                expression.expression, scope, allow_implicit_names=allow_implicit_names
-            )
+            self._expression(expression.expression, scope, allow_implicit_names=allow_implicit_names)
             return TypeKind.MANTIK
 
         if isinstance(expression, RangeExpression):
-            self._expression(expression.start, scope, allow_implicit_names=allow_implicit_names)
-            self._expression(expression.end, scope, allow_implicit_names=allow_implicit_names)
+            start = self._expression(expression.start, scope, allow_implicit_names=allow_implicit_names)
+            end = self._expression(expression.end, scope, allow_implicit_names=allow_implicit_names)
+            if TypeKind.BILINMEYEN not in {start, end} and not (start in _NUMERIC and end in _NUMERIC):
+                self._diagnose("Aralık başlangıcı ve sonu sayısal olmalıdır.", expression.location, "SHN-T408")
             return TypeKind.BILINMEYEN
 
         if isinstance(expression, Pipeline):
@@ -342,6 +376,61 @@ class SemanticAnalyzer:
             return TypeKind.BILINMEYEN
 
         return TypeKind.BILINMEYEN
+
+    def _check_call(self, symbol: Symbol, actual: tuple[TypeKind, ...], location: SourceLocation | None) -> None:
+        if len(actual) != len(symbol.parameter_types):
+            self._diagnose(
+                f"{symbol.name!r} akışı {len(symbol.parameter_types)} parametre bekliyor; {len(actual)} verildi.",
+                location,
+                "SHN-T101",
+            )
+            return
+        for index, (expected, got) in enumerate(zip(symbol.parameter_types, actual), start=1):
+            if not self._compatible(expected, got):
+                self._diagnose(
+                    f"{symbol.name!r} akışının {index}. parametresi {expected.value} bekliyor; {got.value} verildi.",
+                    location,
+                    "SHN-T102",
+                )
+
+    def _check_return_type(self, actual: TypeKind, expected: TypeKind, location: SourceLocation | None) -> None:
+        if expected is TypeKind.BILINMEYEN:
+            return
+        if not self._compatible(expected, actual):
+            self._diagnose(
+                f"Akış {expected.value} döndürmeli; {actual.value} döndürülüyor.",
+                location,
+                "SHN-T103",
+            )
+
+    def _apply_narrowing(self, condition, yes_scope: Scope, no_scope: Scope) -> None:
+        if not isinstance(condition, Predicate) or not isinstance(condition.expression, Name):
+            return
+        source = yes_scope.parent.resolve(condition.expression.value) if yes_scope.parent else None
+        if source is None:
+            return
+        if condition.predicate == "yok":
+            yes_scope.symbols[source.name] = Symbol(source.name, TypeKind.YOK, source.kind, source.binding, source.location)
+            if source.type_kind is TypeKind.YOK:
+                no_scope.symbols[source.name] = Symbol(source.name, TypeKind.BILINMEYEN, source.kind, source.binding, source.location)
+
+    @staticmethod
+    def _compatible(expected: TypeKind, actual: TypeKind) -> bool:
+        if TypeKind.BILINMEYEN in {expected, actual}:
+            return True
+        if expected is actual:
+            return True
+        if expected in {TypeKind.ONDALIK, TypeKind.PARA} and actual is TypeKind.SAYI:
+            return True
+        return False
+
+    @staticmethod
+    def _comparable(left: TypeKind, right: TypeKind) -> bool:
+        if TypeKind.BILINMEYEN in {left, right}:
+            return True
+        if left is right:
+            return True
+        return left in _NUMERIC and right in _NUMERIC
 
     @staticmethod
     def _literal_type(value: object) -> TypeKind:
@@ -363,14 +452,14 @@ class SemanticAnalyzer:
             "yazı": TypeKind.YAZI,
             "sayı": TypeKind.SAYI,
             "ondalık": TypeKind.ONDALIK,
-            "para": TypeKind.ONDALIK,
+            "para": TypeKind.PARA,
             "mantık": TypeKind.MANTIK,
+            "evet_hayır": TypeKind.MANTIK,
+            "yok": TypeKind.YOK,
         }
         return mapping.get(name or "", TypeKind.BILINMEYEN)
 
-    def _diagnose(
-        self, message: str, location: SourceLocation | None, code: str
-    ) -> None:
+    def _diagnose(self, message: str, location: SourceLocation | None, code: str) -> None:
         self.diagnostics.append(SemanticDiagnostic(message, location, code))
 
 

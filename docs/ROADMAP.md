@@ -12,7 +12,7 @@ Toplam ilerleme: **%32**
 | 1. Dil anayasası + sözdizimi çekirdeği | %7 | ✅ Tamamlandı | Özgünlük ilkeleri, UTF-8, ilk grammar, lexer smoke testleri |
 | 2. Parser + ifade sistemi + semantik çekirdek | %12 | ✅ Tamamlandı | Blok AST, precedence, bağlama, koşul/yineleme, sembol çözümleme, tip çıkarımı |
 | 3. Çalıştırma motoru + hata modeli | %10 | ✅ Tamamlandı | Scope, çağrı modeli, kontrol akışı, deterministik runtime, diagnostics |
-| 4. Tip sistemi + güvenlik | %10 | 🚧 Sıradaki | Statik tipler, nullable/yok güvenliği, capability modeli, type/property testleri |
+| 4. Tip sistemi + güvenlik | %10 | 🚧 Devam ediyor | Statik tipler, nullable/yok güvenliği, capability modeli, type/property testleri |
 | 5. Standart kütüphane | %9 | ⏳ | metin/sayı/liste/zaman/dosya/ağ/json/şifreleme temel API'leri |
 | 6. Arayüz + görünüm motoru | %11 | ⏳ | Şahin UI ağacı, stil sistemi, olaylar, erişilebilirlik, browser hedefi |
 | 7. Sunucu + API + veri motoru | %11 | ⏳ | HTTP, servis/uç modeli, migration, sorgu planı, transaction, güvenli veri erişimi |
@@ -99,18 +99,22 @@ Hedef ilerleme: **%22 → %32**
 
 Hedef ilerleme: **%32 → %42**
 
-- [ ] Nominal/temel tip sözleşmesi (`yazı`, `sayı`, `ondalık`, `para`, `evet_hayır`, `yok`)
-- [ ] Akış parametre ve dönüş tipi doğrulaması
-- [ ] Atama ve `Binding` tip bütünlüğü
-- [ ] `yok`/nullable güvenliği
+- [x] Nominal/temel tip sözleşmesi (`yazı`, `sayı`, `ondalık`, `para`, `evet_hayır`, `yok`)
+- [x] Akış parametre ve dönüş tipi doğrulaması
+- [x] Atama ve `Binding` tip bütünlüğü
+- [x] `yok` değerine doğrudan üye erişiminin statik engellenmesi
 - [ ] Union/opsiyonel tip için Şahin'e özgü sade model
-- [ ] Güvenli daraltma (flow-sensitive narrowing)
-- [ ] Capability tabanlı dosya/ağ/veri erişim güvenliği taslağı
-- [ ] Statik diagnostic kodları ve Türkçe hata açıklamaları
-- [ ] Type property/regression testleri
-- [ ] Güvenlik olumsuz testleri
-- [ ] CI 3.11/3.12/3.13 tamamen yeşil
+- [x] İlk flow-sensitive `yok` daraltma altyapısı
+- [x] Capability tabanlı dosya/ağ/veri erişimi için varsayılan-kapalı yetki modeli
+- [x] Statik diagnostic kodları ve Türkçe hata açıklamaları
+- [x] Type property/regression testleri
+- [x] Güvenlik olumsuz testleri
+- [x] İlk Aşama 4 CI turu: 3.11/3.12/3.13 tamamen yeşil
+
+### Aşama 4 doğrulama kaydı
+
+İlk Aşama 4 PR'ında akış imzaları, çağrı tip kontrolü, çıkarılmış tip bütünlüğü, `yok` erişim teşhisi, aritmetik/karşılaştırma kuralları ve capability güvenlik modeli eklendi. Olumlu/olumsuz/property/regression testlerinin tamamı Python 3.11/3.12/3.13 matrisinde geçti. Ancak Şahin'e özgü açık union/opsiyonel tip modeli tamamlanmadığı için genel ilerleme bilinçli olarak %32'de tutulmuştur.
 
 ## Sonraki kapı
 
-Aşama 4, yukarıdaki maddeler ve CI doğrulanmadan %42 olarak işaretlenmeyecektir.
+Aşama 4, Şahin'e özgü union/opsiyonel tip modeli ve bunun daraltma/regression testleri tamamlanıp CI yeniden tamamen yeşil olmadan %42 olarak işaretlenmeyecektir.
