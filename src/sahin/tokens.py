@@ -20,6 +20,8 @@ class TokenKind(str, Enum):
     DOT = "."
     PIPE = "|"
     RANGE = ".."
+    LPAREN = "("
+    RPAREN = ")"
     OPERATOR = "OPERATOR"
     EOF = "EOF"
 
