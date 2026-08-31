@@ -1,0 +1,10 @@
+Program
+  Declaration(kayıt Ürün)
+    Field(ad:yazı gerekli)
+  Declaration(ekran Ana)
+    Binding(ürünler)
+      Pipeline
+        Member(tümü)
+          Name(Ürün)
+        Stage(ilk)
+          Literal(10)
