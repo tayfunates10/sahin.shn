@@ -4,7 +4,7 @@ Bu belge Şahin'in %100 tamamlanma yolunu ve her aşamadaki kalite kapılarını
 
 ## İlerleme modeli
 
-Toplam ilerleme: **%32**
+Toplam ilerleme: **%42**
 
 | Aşama | Ağırlık | Durum | Kabul kapısı |
 |---|---:|---|---|
@@ -12,8 +12,8 @@ Toplam ilerleme: **%32**
 | 1. Dil anayasası + sözdizimi çekirdeği | %7 | ✅ Tamamlandı | Özgünlük ilkeleri, UTF-8, ilk grammar, lexer smoke testleri |
 | 2. Parser + ifade sistemi + semantik çekirdek | %12 | ✅ Tamamlandı | Blok AST, precedence, bağlama, koşul/yineleme, sembol çözümleme, tip çıkarımı |
 | 3. Çalıştırma motoru + hata modeli | %10 | ✅ Tamamlandı | Scope, çağrı modeli, kontrol akışı, deterministik runtime, diagnostics |
-| 4. Tip sistemi + güvenlik | %10 | 🚧 Devam ediyor | Statik tipler, nullable/yok güvenliği, capability modeli, type/property testleri |
-| 5. Standart kütüphane | %9 | ⏳ | metin/sayı/liste/zaman/dosya/ağ/json/şifreleme temel API'leri |
+| 4. Tip sistemi + güvenlik | %10 | ✅ Tamamlandı | Statik tipler, nullable/yok güvenliği, capability modeli, type/property testleri |
+| 5. Standart kütüphane | %9 | 🚧 Sıradaki | metin/sayı/liste/zaman/dosya/ağ/json/şifreleme temel API'leri |
 | 6. Arayüz + görünüm motoru | %11 | ⏳ | Şahin UI ağacı, stil sistemi, olaylar, erişilebilirlik, browser hedefi |
 | 7. Sunucu + API + veri motoru | %11 | ⏳ | HTTP, servis/uç modeli, migration, sorgu planı, transaction, güvenli veri erişimi |
 | 8. Modül + paket ekosistemi | %7 | ⏳ | modüller, paket manifesti, lockfile, registry protokolü, imza/doğrulama |
@@ -95,7 +95,7 @@ Hedef ilerleme: **%22 → %32**
 
 İlk CI turunda iki test, runtime nedeniyle değil v0.1 grammarında çıplak `akış()` çağrısının statement olarak desteklenmemesi nedeniyle parserda kırıldı. Testler mevcut geçerli çağrı ifadesi sözleşmesi (`sonuç = akış()`) üzerinden yürütülecek şekilde düzeltildi; ikinci CI turunda üç Python matrisi de tamamen yeşil geçti. Çıplak çağrı statement desteği ayrı grammar genişlemesi olarak korunacaktır.
 
-## Aşama 4 — Tip sistemi + güvenlik
+## Aşama 4 — Tip sistemi + güvenlik ✅
 
 Hedef ilerleme: **%32 → %42**
 
@@ -103,18 +103,21 @@ Hedef ilerleme: **%32 → %42**
 - [x] Akış parametre ve dönüş tipi doğrulaması
 - [x] Atama ve `Binding` tip bütünlüğü
 - [x] `yok` değerine doğrudan üye erişiminin statik engellenmesi
-- [ ] Union/opsiyonel tip için Şahin'e özgü sade model
-- [x] İlk flow-sensitive `yok` daraltma altyapısı
+- [x] Union/opsiyonel tip için Şahin'e özgü `TypeSpec` modeli
+- [x] Parserda `X veya yok` parametre/dönüş/kayıt alanı sözleşmesi
+- [x] Ana `SemanticAnalyzer` içinde TypeSpec taşıyan sembol modeli
+- [x] Flow-sensitive `yok` daraltma: `ise` ve `yoksa` dalları
+- [x] Daraltılmamış opsiyonel üye erişiminde `SHN-T302`
 - [x] Capability tabanlı dosya/ağ/veri erişimi için varsayılan-kapalı yetki modeli
 - [x] Statik diagnostic kodları ve Türkçe hata açıklamaları
 - [x] Type property/regression testleri
 - [x] Güvenlik olumsuz testleri
-- [x] İlk Aşama 4 CI turu: 3.11/3.12/3.13 tamamen yeşil
+- [x] Python 3.11/3.12/3.13 compile + test + `.shn` smoke CI tamamen yeşil
 
 ### Aşama 4 doğrulama kaydı
 
-İlk Aşama 4 PR'ında akış imzaları, çağrı tip kontrolü, çıkarılmış tip bütünlüğü, `yok` erişim teşhisi, aritmetik/karşılaştırma kuralları ve capability güvenlik modeli eklendi. Olumlu/olumsuz/property/regression testlerinin tamamı Python 3.11/3.12/3.13 matrisinde geçti. Ancak Şahin'e özgü açık union/opsiyonel tip modeli tamamlanmadığı için genel ilerleme bilinçli olarak %32'de tutulmuştur.
+Aşama 4 üç katmanda tamamlandı: önce temel tip/capability kuralları, ardından `TypeSpec` ve bağımsız flow ortamı, son olarak parser sözleşmesi ile ana `SemanticAnalyzer` entegrasyonu. `TypeKind` ortak çekirdek modüle ayrılarak semantik ve opsiyonel tip katmanları arasındaki döngüsel bağımlılık kaldırıldı. Opsiyonel parametre/dönüş sözleşmeleri ana sembol modelinde korunuyor; daraltılmamış alan erişimi `SHN-T302` üretirken `değer yok ise / yoksa` akışında mevcut değer dalı güvenli şekilde daraltılıyor. Son kalite turu Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke çalıştırmasıyla yeşil geçti.
 
 ## Sonraki kapı
 
-Aşama 4, Şahin'e özgü union/opsiyonel tip modeli ve bunun daraltma/regression testleri tamamlanıp CI yeniden tamamen yeşil olmadan %42 olarak işaretlenmeyecektir.
+Aşama 5 — Standart kütüphane. Metin, sayı, koleksiyon, zaman, JSON, dosya, ağ ve kriptografi API'leri Şahin'in capability güvenlik modeliyle birlikte tasarlanacak; kullanıcıya Python/JS standart kütüphanelerinin Türkçeleştirilmiş kopyası sunulmayacak.
