@@ -60,10 +60,10 @@ Bu örnek herhangi bir HTML etiketi, CSS seçicisi, JavaScript fonksiyonu veya S
 
 ## Durum
 
-**Genel ilerleme: %10**
+**Genel ilerleme: %22**
 
-Aktif aşama: **Aşama 2 — Parser + ifade sistemi + semantik çekirdek**  
-Aktif geliştirme dalı: `feat/parser-semantic-v0.1`
+Tamamlanan son kalite kapısı: **Aşama 2 — Parser + ifade sistemi + semantik çekirdek**  
+Sıradaki aşama: **Aşama 3 — Çalıştırma motoru + hata modeli**
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -73,8 +73,8 @@ Aktif geliştirme dalı: `feat/parser-semantic-v0.1`
 |---|---:|---|
 | 0 — Proje temeli | %3 | ✅ |
 | 1 — Dil anayasası + sözdizimi çekirdeği | %10 | ✅ |
-| 2 — Parser + ifade sistemi + semantik çekirdek | %22 | 🚧 |
-| 3 — Çalıştırma motoru + hata modeli | %32 | ⏳ |
+| 2 — Parser + ifade sistemi + semantik çekirdek | %22 | ✅ |
+| 3 — Çalıştırma motoru + hata modeli | %32 | 🚧 Sıradaki |
 | 4 — Tip sistemi + güvenlik | %42 | ⏳ |
 | 5 — Standart kütüphane | %51 | ⏳ |
 | 6 — Arayüz + görünüm motoru | %62 | ⏳ |
@@ -86,6 +86,18 @@ Aktif geliştirme dalı: `feat/parser-semantic-v0.1`
 | 12 — Fuzz/security/compatibility ve 1.0 sertifikasyonu | %100 | ⏳ |
 
 Ayrıntılı alt aşamalar ve kabul kriterleri: [`docs/ROADMAP.md`](docs/ROADMAP.md)
+
+## Aşama 2 doğrulaması
+
+- Native Şahin AST ve ayrı `Binding` düğümü
+- Blok parserı ve özgün postfix koşul modeli
+- Precedence, çağrı, üye erişimi, `..` ve `|`
+- Scope/symbol çözümleme ve ilk tip çıkarımı
+- Türkçe diagnostic + yakın isim önerisi
+- Golden AST sözleşmesi
+- Unicode NFC + 100 varyant deterministik property testi
+- Karşılaştırma operatörleri regression testi
+- Python 3.11 / 3.12 / 3.13 CI: yeşil
 
 ## Kalite ve geliştirme akışı
 
