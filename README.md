@@ -75,7 +75,7 @@ Sıradaki aşama: **Aşama 4 — Tip sistemi + güvenlik**
 | 1 — Dil anayasası + sözdizimi çekirdeği | %10 | ✅ |
 | 2 — Parser + ifade sistemi + semantik çekirdek | %22 | ✅ |
 | 3 — Çalıştırma motoru + hata modeli | %32 | ✅ |
-| 4 — Tip sistemi + güvenlik | %42 | 🚧 Sıradaki |
+| 4 — Tip sistemi + güvenlik | %42 | 🚧 Devam ediyor |
 | 5 — Standart kütüphane | %51 | ⏳ |
 | 6 — Arayüz + görünüm motoru | %62 | ⏳ |
 | 7 — Sunucu + API + veri motoru | %73 | ⏳ |
@@ -110,6 +110,18 @@ Ayrıntılı alt aşamalar ve kabul kriterleri: [`docs/ROADMAP.md`](docs/ROADMAP
 - Türkçe kaynak satır/sütun bilgili runtime hata modeli ve Şahin akış zinciri
 - İlk CI denemesinde çıplak `akış()` statement parser sınırı testte tespit edildi; test mevcut v0.1 çağrı ifadesi sözleşmesine göre düzeltilip kalite kapısı yeniden çalıştırıldı
 - Python 3.11 / 3.12 / 3.13 CI: yeşil
+
+## Aşama 4 doğrulanmış alt ilerleme
+
+- Parametre/dönüş tipi doğrulaması ve atama güvenliği
+- `<-` Binding tip bütünlüğü
+- Varsayılan-kapalı capability güvenlik çekirdeği
+- `TypeSpec` birleşik/opsiyonel tip modeli (`X veya yok`)
+- `yok` içeren tipler için ayrı flow-type ortamı ve iki dala güvenli daraltma
+- Daraltılmamış opsiyonel değerde alan erişimini engelleyen `SHN-T302` diagnostic sözleşmesi
+- Opsiyonel sözleşmede uyumlu/uyumsuz atama regression testleri
+
+**Aşama 4 henüz tamamlanmadı.** Parserın `X veya yok` tip yazımını doğrudan kabul etmesi ve ana `SemanticAnalyzer`ın `TypeSpec`/flow ortamını kullanması doğrulanmadan genel ilerleme %42'ye çıkarılmayacaktır.
 
 ## Kalite ve geliştirme akışı
 
