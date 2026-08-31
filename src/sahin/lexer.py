@@ -31,6 +31,7 @@ _SINGLE = {
 }
 
 _OPERATOR_CHARS = set("+-*/%<>!")
+_LOGICAL_WORDS = {"ve", "veya"}
 
 
 def _is_identifier_start(ch: str) -> bool:
@@ -88,7 +89,18 @@ class Lexer:
             indents.pop()
             tokens.append(Token(TokenKind.DEDENT, "", final_line, 1))
         tokens.append(Token(TokenKind.EOF, "", final_line, 1))
-        return self._collapse_type_contracts(tokens)
+        return self._normalize_contextual_tokens(tokens)
+
+    @classmethod
+    def _normalize_contextual_tokens(cls, tokens: list[Token]) -> list[Token]:
+        collapsed = cls._collapse_type_contracts(tokens)
+        normalized: list[Token] = []
+        for token in collapsed:
+            if token.kind is TokenKind.IDENTIFIER and token.value in _LOGICAL_WORDS:
+                normalized.append(Token(TokenKind.OPERATOR, token.value, token.line, token.column))
+            else:
+                normalized.append(token)
+        return normalized
 
     @staticmethod
     def _collapse_type_contracts(tokens: list[Token]) -> list[Token]:
