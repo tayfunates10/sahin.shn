@@ -4,14 +4,14 @@ Bu belge Şahin'in %100 tamamlanma yolunu ve her aşamadaki kalite kapılarını
 
 ## İlerleme modeli
 
-Toplam ilerleme: **%10**
+Toplam ilerleme: **%22**
 
 | Aşama | Ağırlık | Durum | Kabul kapısı |
 |---|---:|---|---|
 | 0. Proje temeli | %3 | ✅ Tamamlandı | Repo, paket iskeleti, CI başlangıcı |
 | 1. Dil anayasası + sözdizimi çekirdeği | %7 | ✅ Tamamlandı | Özgünlük ilkeleri, UTF-8, ilk grammar, lexer smoke testleri |
-| 2. Parser + ifade sistemi + semantik çekirdek | %12 | 🚧 Aktif | Blok AST, precedence, bağlama, koşul/yineleme, sembol çözümleme, tip çıkarımı |
-| 3. Çalıştırma motoru + hata modeli | %10 | ⏳ | Scope, çağrı modeli, kontrol akışı, deterministik runtime, diagnostics |
+| 2. Parser + ifade sistemi + semantik çekirdek | %12 | ✅ Tamamlandı | Blok AST, precedence, bağlama, koşul/yineleme, sembol çözümleme, tip çıkarımı |
+| 3. Çalıştırma motoru + hata modeli | %10 | 🚧 Sıradaki | Scope, çağrı modeli, kontrol akışı, deterministik runtime, diagnostics |
 | 4. Tip sistemi + güvenlik | %10 | ⏳ | Statik tipler, nullable/yok güvenliği, capability modeli, type/property testleri |
 | 5. Standart kütüphane | %9 | ⏳ | metin/sayı/liste/zaman/dosya/ağ/json/şifreleme temel API'leri |
 | 6. Arayüz + görünüm motoru | %11 | ⏳ | Şahin UI ağacı, stil sistemi, olaylar, erişilebilirlik, browser hedefi |
@@ -35,44 +35,62 @@ Toplam ilerleme: **%10**
 9. Şahin AST/IR başka bir dilin AST'sinin Türkçeleştirilmiş biçimi olmayacaktır.
 10. Bootstrap uygulama dili değişse bile Şahin'in grammar/AST/semantik sözleşmesi korunur.
 
-## Aşama 2 — Parser + semantik çekirdek
+## Aşama 2 — Parser + semantik çekirdek ✅
 
 ### 2A — AST genişletme (%10 → %12)
-- [ ] Blok düğümü
-- [ ] `uygulama`, `ekran`, `görünüm`, `akış`, `kayıt`, `uç`, `iş`, `olay`
-- [ ] Kaynak konum bilgisi
-- [ ] Şahin'e özgü binding düğümü
+- [x] Blok düğümü
+- [x] `uygulama`, `ekran`, `görünüm`, `akış`, `kayıt`, `uç`, `iş`, `olay`
+- [x] Kaynak konum bilgisi
+- [x] Şahin'e özgü `Binding` düğümü (`<-`, normal `=` atamasından ayrı)
 
 ### 2B — İfade sistemi (%12 → %15)
-- [ ] Prefix/unary ifadeler
-- [ ] Binary precedence
-- [ ] Üye erişimi
-- [ ] Çağrı
-- [ ] `..` aralık
-- [ ] `|` veri hattı
-- [ ] Parantezli ifade
+- [x] Prefix/unary ifadeler
+- [x] Binary precedence
+- [x] Üye erişimi
+- [x] Çağrı
+- [x] `..` aralık
+- [x] `|` veri hattı
+- [x] Parantezli ifade
 
 ### 2C — Kontrol akışı grammarı (%15 → %18)
-- [ ] `... ise`
-- [ ] `yoksa`
-- [ ] `her ... içinden ...`
-- [ ] `duruma göre`
-- [ ] `bitir`
+- [x] `... ise`
+- [x] `yoksa`
+- [x] `her ... içinden ...`
+- [x] `duruma göre`
+- [x] `bitir` komutunun AST olarak kabulü
 
 ### 2D — Semantik analiz (%18 → %20)
-- [ ] Sembol tablosu
-- [ ] Scope çözümleme
-- [ ] Tanımsız isim teşhisi
-- [ ] Yeniden tanımlama/binding kuralları
-- [ ] İlk tip çıkarımı
+- [x] Sembol tablosu
+- [x] Scope çözümleme
+- [x] Tanımsız isim teşhisi ve yakın isim önerisi
+- [x] Yeniden tanımlama/binding kuralları
+- [x] İlk tip çıkarımı
 
 ### 2E — Sertifikasyon (%20 → %22)
-- [ ] Golden parser testleri
-- [ ] Unicode normalizasyon testleri
-- [ ] Hatalı girinti testleri
-- [ ] Diagnostic konum testleri
+- [x] Golden parser testleri
+- [x] Unicode NFC normalizasyon testleri
+- [x] Deterministik 100-varyant Unicode property testi
+- [x] Hatalı girinti testleri
+- [x] Diagnostic satır/sütun konum testleri
+- [x] Karşılaştırma operatörleri regression testi (`<=`, `>=`, `==`, `!=`)
+- [x] CI 3.11/3.12/3.13 tamamen yeşil
+
+## Aşama 3 — Çalıştırma motoru + hata modeli
+
+Hedef ilerleme: **%22 → %32**
+
+- [ ] Lexical scope ve çalışma çerçeveleri
+- [ ] `akış` çağırma, parametre bağlama ve `ver`
+- [ ] Binary/unary ifade yürütme
+- [ ] `ise/yoksa`, `her`, `duruma göre`, `bitir`
+- [ ] `dene/olmazsa` ve Şahin hata nesnesi
+- [ ] `Binding` kaynak çözümü ve değişmez bağlama sözleşmesi
+- [ ] Pipeline yürütme çekirdeği
+- [ ] Kaynak konumlu runtime stack trace
+- [ ] Deterministik yürütme testleri
+- [ ] Runtime property/regression testleri
 - [ ] CI 3.11/3.12/3.13 tamamen yeşil
 
 ## Sonraki kapı
 
-Aşama 2 %22'ye ulaşmadan Aşama 3 tamamlanmış sayılmaz. Deneysel runtime çalışmaları yapılabilir, ancak roadmap yüzdesi kalite kapısına göre hesaplanır.
+Aşama 3, yukarıdaki maddeler ve CI doğrulanmadan %32 olarak işaretlenmeyecektir.
