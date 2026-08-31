@@ -31,6 +31,7 @@ _SINGLE = {
 }
 
 _OPERATOR_CHARS = set("+-*/%<>!")
+_LOGICAL_WORDS = {"ve", "veya"}
 
 
 def _is_identifier_start(ch: str) -> bool:
@@ -88,7 +89,72 @@ class Lexer:
             indents.pop()
             tokens.append(Token(TokenKind.DEDENT, "", final_line, 1))
         tokens.append(Token(TokenKind.EOF, "", final_line, 1))
-        return tokens
+        return self._normalize_contextual_tokens(tokens)
+
+    @classmethod
+    def _normalize_contextual_tokens(cls, tokens: list[Token]) -> list[Token]:
+        collapsed = cls._collapse_type_contracts(tokens)
+        normalized: list[Token] = []
+        for token in collapsed:
+            if token.kind is TokenKind.IDENTIFIER and token.value in _LOGICAL_WORDS:
+                normalized.append(Token(TokenKind.OPERATOR, token.value, token.line, token.column))
+            else:
+                normalized.append(token)
+        return normalized
+
+    @staticmethod
+    def _collapse_type_contracts(tokens: list[Token]) -> list[Token]:
+        """Tip konumundaki `X veya yok` yazımını tek IDENTIFIER olarak kanonikleştirir.
+
+        `veya` normal ifadelerde bir mantıksal operatördür. Bu nedenle birleştirme
+        yalnızca `:` parametre/alan tipi veya `->` dönüş tipi sonrasında yapılır.
+        Parser böylece başka dillerdeki union operatörünü taklit eden ayrı bir AST
+        düğümüne ihtiyaç duymadan Şahin'in doğal tip sözleşmesini alır.
+        """
+        out: list[Token] = []
+        i = 0
+        type_context = False
+
+        while i < len(tokens):
+            token = tokens[i]
+            out.append(token)
+
+            if token.kind in {TokenKind.COLON, TokenKind.ARROW}:
+                type_context = True
+                i += 1
+                continue
+
+            if type_context and token.kind is TokenKind.IDENTIFIER:
+                if (
+                    i + 2 < len(tokens)
+                    and tokens[i + 1].kind is TokenKind.IDENTIFIER
+                    and tokens[i + 1].value == "veya"
+                    and tokens[i + 2].kind is TokenKind.IDENTIFIER
+                    and tokens[i + 2].value == "yok"
+                ):
+                    out[-1] = Token(
+                        TokenKind.IDENTIFIER,
+                        f"{token.value} veya yok",
+                        token.line,
+                        token.column,
+                    )
+                    i += 3
+                    type_context = False
+                    continue
+                type_context = False
+
+            if token.kind in {
+                TokenKind.NEWLINE,
+                TokenKind.COMMA,
+                TokenKind.ASSIGN,
+                TokenKind.BIND,
+                TokenKind.FAT_ARROW,
+            }:
+                type_context = False
+
+            i += 1
+
+        return out
 
     def _tokenize_line(
         self, text: str, line: int, base_column: int, out: list[Token]
