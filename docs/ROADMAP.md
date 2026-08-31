@@ -4,7 +4,7 @@ Bu belge Şahin'in %100 tamamlanma yolunu ve kalite kapılarını tanımlar. Bir
 
 ## İlerleme modeli
 
-Toplam ilerleme: **%51**
+Toplam ilerleme: **%62**
 
 | Aşama | Ağırlık | Durum | Kabul kapısı |
 |---|---:|---|---|
@@ -14,8 +14,8 @@ Toplam ilerleme: **%51**
 | 3. Runtime + hata modeli | %10 | ✅ Tamamlandı | Scope, çağrı, kontrol akışı, diagnostics |
 | 4. Tip sistemi + güvenlik | %10 | ✅ Tamamlandı | `TypeSpec`, `yok` güvenliği, capability |
 | 5. Standart kütüphane | %9 | ✅ Tamamlandı | metin/sayı/koleksiyon/zaman/json/dosya/ağ/kripto |
-| 6. Arayüz + görünüm motoru | %11 | 🚧 Geliştiriliyor | UI ağacı, stil, olaylar, erişilebilirlik, browser hedefi |
-| 7. Sunucu + API + veri motoru | %11 | ⏳ | HTTP, uç, migration, sorgu, transaction |
+| 6. Arayüz + görünüm motoru | %11 | ✅ Tamamlandı | UI ağacı, stil, olaylar, erişilebilirlik, browser hedefi |
+| 7. Sunucu + API + veri motoru | %11 | 🚧 Sıradaki | HTTP, uç, migration, sorgu, transaction |
 | 8. Modül + paket ekosistemi | %7 | ⏳ | manifest, lockfile, registry, imza |
 | 9. Araç zinciri | %7 | ⏳ | formatter, linter, test runner, LSP, debugger, REPL |
 | 10. WASM/native + performans | %7 | ⏳ | Şahin IR, WASM/native, benchmark |
@@ -87,29 +87,27 @@ Hedef ilerleme: **%42 → %51**
 
 Standart kütüphane, başka dillerin API yüzeyini Türkçeleştirmek yerine Şahin'in capability ve güvenli-varsayılan modeline göre tasarlandı. Saf işlemler deterministik ve capability'siz; dış dünya işlemleri yetki kontrolünü dış kaynağa dokunmadan önce yapıyor. JSON/dosya/ağ işlemlerinde kaynak tüketimi sınırlandırıldı. Kripto yüzeyi yüksek seviyeli güvenli primitive'lerle sınırlandı. İlk kalite turunda Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke çalıştırması yeşil geçti.
 
-## Aşama 6 — Arayüz + görünüm motoru 🚧
+## Aşama 6 — Arayüz + görünüm motoru ✅
 
 Hedef ilerleme: **%51 → %62**
-
-Aşama 6 çekirdek dilimi `feat/ui-render-v0.1` üzerinde geliştiriliyor. Aşağıdaki işaretler kod+test kapsamını gösterir; **Aşama 6'nın genel yüzdesi, tüm kabul kapıları ve CI tamamlanmadan %62'ye çıkarılmaz.**
 
 - [x] Şahin'e özgü immutable/kimlikli UI ağacı
 - [x] `ekran`, `kart`, `başlık`, `metin`, `eylem` düğümlerinin runtime modeli
 - [x] HTML/CSS seçicilerini kullanıcıya taşımayan temel görünüm sistemi
-- [ ] Tasarım tokenları, tipografi ve responsive kuralları
+- [x] Tasarım tokenları, tipografi ve responsive kuralları
 - [x] Olay modelinin immutable render sözleşmesi
-- [ ] Kontrollü state güncelleme modeli
+- [x] Kontrollü, immutable ve sürümlü state güncelleme modeli
 - [x] Klavye/focus/semantik erişilebilirlik çekirdek sözleşmesi
 - [x] Deterministik render snapshot/golden testleri
 - [x] Browser adapter/WASM öncesi host-independent render IR
 - [x] XSS/unsafe-content varsayılan-kapalı güvenlik testleri
-- [ ] Browser adapter sınırı ve adapter contract testleri
-- [ ] Python 3.11/3.12/3.13 CI tamamen yeşil
+- [x] Browser adapter sınırı ve adapter contract/security testleri
+- [x] Python 3.11/3.12/3.13 CI tamamen yeşil
 
-### Aşama 6 çekirdek doğrulama notu
+### Aşama 6 doğrulama kaydı
 
-Render modeli DOM veya HTML etiketi taşımayan `Dugum`/`RenderIR` yapısına dayanır. Düğümler immutable'dır, kimlikler NFC normalize edilir ve ağaç genelinde yinelenen kimlikler reddedilir. Etkileşimli `eylem` düğümleri erişilebilir etiket ve focus semantiği taşır. Kullanıcı metni host adapterına aktarılırken varsayılan olarak kaçırılır; ham içerik açık izin olmadan oluşturulamaz. Görünüm modeli selector/CSS sözdizimi yerine Şahin'e özgü ölçü ve hizalama değerleri kullanır.
+Render modeli DOM veya HTML etiketi taşımayan `Dugum`/`RenderIR` yapısına dayanır. Düğümler immutable'dır, kimlikler NFC normalize edilir ve ağaç genelinde yinelenen kimlikler reddedilir. Etkileşimli `eylem` düğümleri erişilebilir etiket ve focus semantiği taşır. Kullanıcı metni host adapterına aktarılırken varsayılan olarak kaçırılır; ham içerik açık izin olmadan oluşturulamaz. Görünüm modeli selector/CSS sözdizimi yerine Şahin'e özgü ölçü, tasarım tokenı ve responsive eşik değerleri kullanır. UI state sürümlü ve immutable'dır; state işlemleri yalnızca açıkça izin verilmiş alanları değiştirebilir. Browser adapter sözleşmesi HTML metni üretmez, host ağacını yapılandırılmış veri olarak taşır ve kullanıcı metnini executable markup olarak yorumlamaz. Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke kalite kapısı yeşil geçti.
 
 ## Sonraki kapı
 
-Aşama 6 tamamlandıktan sonra **Aşama 7 — Sunucu + API + veri motoru** başlayacaktır.
+**Aşama 7 — Sunucu + API + veri motoru** için HTTP/uç modeli, migration, sorgu ve transaction çekirdeği geliştirilecektir. Hedef ilerleme **%62 → %73**.

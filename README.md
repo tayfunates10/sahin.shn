@@ -50,10 +50,10 @@ akış satınAl ürün
 
 ## Durum
 
-**Genel ilerleme: %51**
+**Genel ilerleme: %62**
 
-Tamamlanan son kalite kapısı: **Aşama 5 — Standart kütüphane çekirdeği**  
-Sıradaki aşama: **Aşama 6 — Arayüz + görünüm motoru**
+Tamamlanan son kalite kapısı: **Aşama 6 — Arayüz + görünüm motoru**  
+Sıradaki aşama: **Aşama 7 — Sunucu + API + veri motoru**
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -67,8 +67,8 @@ Sıradaki aşama: **Aşama 6 — Arayüz + görünüm motoru**
 | 3 — Çalıştırma motoru + hata modeli | %32 | ✅ |
 | 4 — Tip sistemi + güvenlik | %42 | ✅ |
 | 5 — Standart kütüphane | %51 | ✅ |
-| 6 — Arayüz + görünüm motoru | %62 | 🚧 Sıradaki |
-| 7 — Sunucu + API + veri motoru | %73 | ⏳ |
+| 6 — Arayüz + görünüm motoru | %62 | ✅ |
+| 7 — Sunucu + API + veri motoru | %73 | 🚧 Sıradaki |
 | 8 — Modül + paket ekosistemi | %80 | ⏳ |
 | 9 — Formatter + linter + test runner + LSP + debugger | %87 | ⏳ |
 | 10 — Şahin IR + WASM/native backend + performans | %94 | ⏳ |
@@ -101,6 +101,17 @@ Lexical frame/scope, `akış` çağrıları, kontrol akışı, `Binding` runtime
 - Python 3.11 / 3.12 / 3.13 compile + test + gerçek `.shn` smoke CI: yeşil
 
 Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-KUTUPHANE.md)
+
+### Aşama 6
+- immutable ve kimlikli `Dugum` / `RenderIR` UI ağacı
+- selector/DOM bağımsız görünüm modeli
+- tasarım tokenları ve responsive eşikler
+- immutable, sürümlü ve alan-izinli state güncelleme modeli
+- erişilebilirlik/focus sözleşmesi
+- HTML üretmeyen host-independent `BrowserAdapter` sınırı
+- kullanıcı içeriği için varsayılan kaçış ve unsafe-content fail-closed güvenliği
+- Unicode, responsive, state çakışması, adapter ve XSS regression testleri
+- Python 3.11 / 3.12 / 3.13 compile + test + gerçek `.shn` smoke CI: yeşil
 
 ## Kalite ve geliştirme akışı
 
