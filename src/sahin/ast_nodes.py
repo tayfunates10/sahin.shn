@@ -109,6 +109,15 @@ class Assignment:
 
 
 @dataclass(frozen=True, slots=True)
+class Binding:
+    """`<-` için normal `=` atamasından ayrı, Şahin'e özgü AST düğümü."""
+
+    name: str
+    source: Expression
+    location: SourceLocation | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Write:
     expression: Expression
     location: SourceLocation | None = None
@@ -190,6 +199,7 @@ class ExpressionStatement:
 
 Statement: TypeAlias = (
     Assignment
+    | Binding
     | Write
     | FieldDeclaration
     | Command
