@@ -14,6 +14,10 @@ _TWO_CHAR = {
     "->": TokenKind.ARROW,
     "=>": TokenKind.FAT_ARROW,
     "..": TokenKind.RANGE,
+    "<=": TokenKind.OPERATOR,
+    ">=": TokenKind.OPERATOR,
+    "==": TokenKind.OPERATOR,
+    "!=": TokenKind.OPERATOR,
 }
 
 _SINGLE = {
@@ -154,8 +158,6 @@ class Lexer:
                 start = i
                 i += 1
                 while i < size and text[i] in _OPERATOR_CHARS:
-                    if text[start : i + 1] in _TWO_CHAR:
-                        break
                     i += 1
                 out.append(Token(TokenKind.OPERATOR, text[start:i], line, column))
                 continue
