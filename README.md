@@ -8,22 +8,15 @@ Tek bir sade dil ile arayüz, görünüm, uygulama mantığı, sunucu, API, veri
 
 > Basitlik yüzeyde, güç altyapıda.
 
-## Neden Şahin?
-
-Bugünkü web geliştirmede HTML + CSS + JavaScript/TypeScript + backend + SQL + framework + ORM zincirini öğrenmek gerekir. Şahin'in amacı bu katmanların kullanıcıya yansıyan bilişsel yükünü tek bir tutarlı dil modelinde azaltmaktır.
-
-Şahin'in hedefi "aynı dillerin Türkçesi" olmak değil; arayüz, olay, veri, işlem ve servis kavramlarını tek AST ve tek çalışma modeli altında birleştirmektir.
-
 ## Temel ilkeler
 
 - Özgün sözdizimi ve özgün semantik
 - UTF-8 ve Türkçe karakterler birinci sınıf vatandaş
 - HTML/CSS/JS/PHP/SQL kalıplarını kullanıcıya taşıtmayan bütünleşik uygulama modeli
-- Yeni başlayan için düşük bilişsel yük
-- Büyük projeler için güçlü tip, modül, eşzamanlılık ve araç zinciri
-- Güvenli varsayılanlar ve anlaşılır hata mesajları
+- Güçlü tip, modül, eşzamanlılık ve araç zinciri
+- Güvenli varsayılanlar ve anlaşılır Türkçe hata mesajları
 - Web, backend, veri ve otomasyon için tek dil
-- Gelecekte WASM/native hedefleri
+- WASM/native hedefleri ve ileride self-hosting
 
 ## İlk Şahin örneği
 
@@ -37,7 +30,6 @@ kayıt Ürün
 
 ekran Ana
     başlık "Ürünler"
-
     ürünler <- Ürün.tümü
 
     her ürün içinden ürünler
@@ -56,14 +48,12 @@ akış satınAl ürün
     bildir "Satın alma başarılı"
 ```
 
-Bu örnek herhangi bir HTML etiketi, CSS seçicisi, JavaScript fonksiyonu veya SQL sorgusu kullanmaz.
-
 ## Durum
 
-**Genel ilerleme: %42**
+**Genel ilerleme: %51**
 
-Tamamlanan son kalite kapısı: **Aşama 4 — Tip sistemi + güvenlik**  
-Sıradaki aşama: **Aşama 5 — Standart kütüphane**
+Tamamlanan son kalite kapısı: **Aşama 5 — Standart kütüphane çekirdeği**  
+Sıradaki aşama: **Aşama 6 — Arayüz + görünüm motoru**
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -76,8 +66,8 @@ Sıradaki aşama: **Aşama 5 — Standart kütüphane**
 | 2 — Parser + ifade sistemi + semantik çekirdek | %22 | ✅ |
 | 3 — Çalıştırma motoru + hata modeli | %32 | ✅ |
 | 4 — Tip sistemi + güvenlik | %42 | ✅ |
-| 5 — Standart kütüphane | %51 | 🚧 Sıradaki |
-| 6 — Arayüz + görünüm motoru | %62 | ⏳ |
+| 5 — Standart kütüphane | %51 | ✅ |
+| 6 — Arayüz + görünüm motoru | %62 | 🚧 Sıradaki |
 | 7 — Sunucu + API + veri motoru | %73 | ⏳ |
 | 8 — Modül + paket ekosistemi | %80 | ⏳ |
 | 9 — Formatter + linter + test runner + LSP + debugger | %87 | ⏳ |
@@ -87,52 +77,39 @@ Sıradaki aşama: **Aşama 5 — Standart kütüphane**
 
 Ayrıntılı alt aşamalar ve kabul kriterleri: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
-## Aşama 2 doğrulaması
+## Doğrulanmış kalite kapıları
 
-- Native Şahin AST ve ayrı `Binding` düğümü
-- Blok parserı ve özgün postfix koşul modeli
-- Precedence, çağrı, üye erişimi, `..` ve `|`
-- Scope/symbol çözümleme ve ilk tip çıkarımı
-- Türkçe diagnostic + yakın isim önerisi
-- Golden AST sözleşmesi
-- Unicode NFC + 100 varyant deterministik property testi
-- Karşılaştırma operatörleri regression testi
-- Python 3.11 / 3.12 / 3.13 CI: yeşil
+### Aşama 2
+Native Şahin AST, ayrı `Binding`, blok parserı, precedence, scope/symbol çözümleme, ilk tip çıkarımı, golden parser sözleşmesi, Unicode NFC/property ve karşılaştırma regression testleri tamamlandı.
 
-## Aşama 3 doğrulaması
+### Aşama 3
+Lexical frame/scope, `akış` çağrıları, kontrol akışı, `Binding` runtime sözleşmesi, pipeline çekirdeği ve kaynak konumlu Şahin hata zinciri tamamlandı.
 
-- Lexical `Frame`/scope çalışma modeli
-- Şahin `FlowValue` üzerinden `akış` çağrıları ve parametre bağlama
-- `ver`, binary/unary ifadeler ve lexical kapanım
-- `ise/yoksa`, `her`, kapsayıcı `..`, `duruma göre`, `dene/olmazsa`, `bitir`
-- `<-` bağlamalarının normal `=` ile yeniden atanmasını engelleyen ayrı runtime sözleşmesi
-- `seç`, `sırala`, `ilk` pipeline çekirdeği
-- Türkçe kaynak satır/sütun bilgili runtime hata modeli ve Şahin akış zinciri
-- İlk CI denemesinde çıplak `akış()` statement parser sınırı testte tespit edildi; test mevcut v0.1 çağrı ifadesi sözleşmesine göre düzeltilip kalite kapısı yeniden çalıştırıldı
-- Python 3.11 / 3.12 / 3.13 CI: yeşil
+### Aşama 4
+`TypeSpec`, `X veya yok`, flow-sensitive `yok` daraltma, `SHN-T302`, parametre/dönüş/atama tip güvenliği ve varsayılan-kapalı capability modeli tamamlandı.
 
-## Aşama 4 doğrulaması
+### Aşama 5
+- NFC güvenli `Metin`
+- Decimal tabanlı `Sayi` ve para biçimleme
+- deterministik `Koleksiyon`
+- test saati enjekte edilebilen `An`
+- boyut sınırlı ve kontrollü hatalı `Json`
+- capability zorunlu `Dosya` okuma/yazma
+- capability, timeout ve boyut sınırı zorunlu `Ag`
+- CSPRNG + SHA-2 + HMAC yüksek seviyeli `Guven`
+- bozuk/aşırı büyük veri, capability reddi, Unicode ve güvenlik regression testleri
+- Python 3.11 / 3.12 / 3.13 compile + test + gerçek `.shn` smoke CI: yeşil
 
-- Parametre/dönüş tipi doğrulaması ve atama güvenliği
-- `<-` Binding tip bütünlüğü
-- Varsayılan-kapalı capability güvenlik çekirdeği
-- `TypeSpec` birleşik/opsiyonel tip modeli (`X veya yok`)
-- Parserda `X veya yok` sözleşmesinin parametre/dönüş/kayıt alanında korunması
-- Ana `SemanticAnalyzer` içinde `TypeSpec` parametre, dönüş ve değer sözleşmeleri
-- `değer yok ise / yoksa` iki dalında flow-sensitive güvenli daraltma
-- Daraltılmamış opsiyonel değerde alan erişimini engelleyen `SHN-T302`
-- Opsiyonel atama/dönüş için olumlu ve olumsuz regression testleri
-- Atomik `TypeKind` çekirdeği ayrıştırılarak semantik/flow katmanındaki döngüsel bağımlılık kaldırıldı
-- Python 3.11 / 3.12 / 3.13 compile + test + `.shn` smoke CI: yeşil
+Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-KUTUPHANE.md)
 
 ## Kalite ve geliştirme akışı
 
 1. Her geliştirme ayrı branch + PR ile ilerler.
-2. Parser/runtime değişikliklerinde olumlu, olumsuz ve regression testleri eklenir.
-3. Python 3.11/3.12/3.13 referans frontend CI matrisi tamamen yeşil olmadan PR `main`e alınmaz.
+2. Olumlu, olumsuz ve regression testleri zorunludur.
+3. Python 3.11/3.12/3.13 CI tamamen yeşil olmadan PR `main`e alınmaz.
 4. Başarısız test atlanmaz veya kalite eşiği düşürülmez; kök neden düzeltilir.
-5. Unicode/Türkçe karakter normalizasyonu ayrıca test edilir.
-6. Güvenlik kritik katmanlarda property/fuzz testleri zorunludur.
+5. Unicode/Türkçe normalizasyonu ayrıca test edilir.
+6. Güvenlik kritik katmanlarda property/fuzz/security testleri zorunludur.
 7. README yüzdesi yalnızca doğrulanmış ilerlemeyi gösterir.
 
 ## Tasarım belgeleri
@@ -141,6 +118,7 @@ Ayrıntılı alt aşamalar ve kabul kriterleri: [`docs/ROADMAP.md`](docs/ROADMAP
 - `docs/SOZDIZIMI-v0.1.md`
 - `docs/MIMARI.md`
 - `docs/ROADMAP.md`
+- `docs/STANDART-KUTUPHANE.md`
 
 ## Lisans
 
