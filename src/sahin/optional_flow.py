@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .semantics import TypeKind
 from .type_model import TypeSpec
+from .types import TypeKind
 
 
 _TYPE_NAMES: dict[str, TypeKind] = {
