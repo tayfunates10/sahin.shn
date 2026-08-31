@@ -1,123 +1,109 @@
 # Şahin Geliştirme Roadmap'i
 
-Bu belge Şahin'in %100 tamamlanma yolunu ve her aşamadaki kalite kapılarını tanımlar. Bir aşama yalnızca kod yazıldığı için tamamlanmış sayılmaz; ilgili testler yeşil olmadan ilerleme yüzdesi artırılmaz.
+Bu belge Şahin'in %100 tamamlanma yolunu ve kalite kapılarını tanımlar. Bir aşama yalnızca kod yazıldığı için tamamlanmış sayılmaz; testler ve CI yeşil olmadan ilerleme yüzdesi artırılmaz.
 
 ## İlerleme modeli
 
-Toplam ilerleme: **%42**
+Toplam ilerleme: **%51**
 
 | Aşama | Ağırlık | Durum | Kabul kapısı |
 |---|---:|---|---|
-| 0. Proje temeli | %3 | ✅ Tamamlandı | Repo, paket iskeleti, CI başlangıcı |
-| 1. Dil anayasası + sözdizimi çekirdeği | %7 | ✅ Tamamlandı | Özgünlük ilkeleri, UTF-8, ilk grammar, lexer smoke testleri |
-| 2. Parser + ifade sistemi + semantik çekirdek | %12 | ✅ Tamamlandı | Blok AST, precedence, bağlama, koşul/yineleme, sembol çözümleme, tip çıkarımı |
-| 3. Çalıştırma motoru + hata modeli | %10 | ✅ Tamamlandı | Scope, çağrı modeli, kontrol akışı, deterministik runtime, diagnostics |
-| 4. Tip sistemi + güvenlik | %10 | ✅ Tamamlandı | Statik tipler, nullable/yok güvenliği, capability modeli, type/property testleri |
-| 5. Standart kütüphane | %9 | 🚧 Sıradaki | metin/sayı/liste/zaman/dosya/ağ/json/şifreleme temel API'leri |
-| 6. Arayüz + görünüm motoru | %11 | ⏳ | Şahin UI ağacı, stil sistemi, olaylar, erişilebilirlik, browser hedefi |
-| 7. Sunucu + API + veri motoru | %11 | ⏳ | HTTP, servis/uç modeli, migration, sorgu planı, transaction, güvenli veri erişimi |
-| 8. Modül + paket ekosistemi | %7 | ⏳ | modüller, paket manifesti, lockfile, registry protokolü, imza/doğrulama |
-| 9. Araç zinciri | %7 | ⏳ | formatter, linter, test runner, LSP, debugger, REPL, editor entegrasyonu |
-| 10. WASM/native backend + performans | %7 | ⏳ | Şahin IR, WASM, native prototip, benchmark/regression kapıları |
-| 11. Self-hosting | %3 | ⏳ | Derleyicinin kritik bölümünün Şahin ile derlenmesi, bootstrap doğrulaması |
-| 12. 1.0 sertifikasyonu | %3 | ⏳ | fuzz/property/security/compatibility/performance testleri ve release checklist |
+| 0. Proje temeli | %3 | ✅ Tamamlandı | Repo, paket iskeleti, CI |
+| 1. Dil anayasası + sözdizimi | %7 | ✅ Tamamlandı | Özgünlük, UTF-8, grammar, lexer |
+| 2. Parser + semantik çekirdek | %12 | ✅ Tamamlandı | AST, precedence, bağlama, sembol/tip çıkarımı |
+| 3. Runtime + hata modeli | %10 | ✅ Tamamlandı | Scope, çağrı, kontrol akışı, diagnostics |
+| 4. Tip sistemi + güvenlik | %10 | ✅ Tamamlandı | `TypeSpec`, `yok` güvenliği, capability |
+| 5. Standart kütüphane | %9 | ✅ Tamamlandı | metin/sayı/koleksiyon/zaman/json/dosya/ağ/kripto |
+| 6. Arayüz + görünüm motoru | %11 | 🚧 Sıradaki | UI ağacı, stil, olaylar, erişilebilirlik, browser hedefi |
+| 7. Sunucu + API + veri motoru | %11 | ⏳ | HTTP, uç, migration, sorgu, transaction |
+| 8. Modül + paket ekosistemi | %7 | ⏳ | manifest, lockfile, registry, imza |
+| 9. Araç zinciri | %7 | ⏳ | formatter, linter, test runner, LSP, debugger, REPL |
+| 10. WASM/native + performans | %7 | ⏳ | Şahin IR, WASM/native, benchmark |
+| 11. Self-hosting | %3 | ⏳ | kritik derleyici bölümlerinin Şahin ile derlenmesi |
+| 12. 1.0 sertifikasyonu | %3 | ⏳ | fuzz/security/compat/performance/release |
 
-## Kalite kuralları
+## Evrensel kalite kuralları
 
 1. Her geliştirme ayrı branch ve PR ile yapılır.
 2. CI tamamen yeşil olmadan PR `main` dalına alınmaz.
-3. Başarısız test silinmez, skip edilmez veya eşik düşürülerek geçirilmez; kök neden düzeltilir.
-4. Her dil özelliğinde en az bir olumlu ve bir olumsuz test bulunur.
-5. Parser ve semantik katmanda regression + golden/snapshot testleri tutulur.
-6. Unicode için Türkçe `ç, ğ, ı, İ, ö, ş, ü` karakterleri ve Unicode normalizasyon varyantları test edilir.
-7. Güvenlik etkili özelliklerde property/fuzz testleri zorunludur.
-8. README ve bu roadmap yalnızca doğrulanmış ilerlemeyi gösterir.
-9. Şahin AST/IR başka bir dilin AST'sinin Türkçeleştirilmiş biçimi olmayacaktır.
-10. Bootstrap uygulama dili değişse bile Şahin'in grammar/AST/semantik sözleşmesi korunur.
+3. Başarısız test silinmez, skip edilmez veya eşik düşürülerek geçirilmez.
+4. Her dil özelliğinde olumlu ve olumsuz test bulunur.
+5. Parser/semantik değişikliklerinde regression + golden/snapshot testleri tutulur.
+6. Türkçe Unicode ve NFC normalizasyonu ayrıca test edilir.
+7. Güvenlik etkili özelliklerde property/fuzz/security testleri zorunludur.
+8. README ve roadmap yalnızca doğrulanmış ilerlemeyi gösterir.
+9. Şahin AST/IR başka dil AST'sinin Türkçeleştirilmiş biçimi olamaz.
+10. Bootstrap dili değişse bile grammar/AST/semantik sözleşmesi korunur.
 
 ## Aşama 2 — Parser + semantik çekirdek ✅
 
-### 2A — AST genişletme (%10 → %12)
-- [x] Blok düğümü
-- [x] `uygulama`, `ekran`, `görünüm`, `akış`, `kayıt`, `uç`, `iş`, `olay`
-- [x] Kaynak konum bilgisi
-- [x] Şahin'e özgü `Binding` düğümü (`<-`, normal `=` atamasından ayrı)
+- [x] Native Şahin AST + ayrı `Binding`
+- [x] Blok parserı ve ifade precedence
+- [x] `ise/yoksa`, yineleme, eşleştirme, pipeline, aralık
+- [x] Scope/symbol çözümleme ve ilk tip çıkarımı
+- [x] Türkçe kaynak konumlu diagnostics
+- [x] Golden + Unicode property + regression testleri
+- [x] Python 3.11/3.12/3.13 CI
 
-### 2B — İfade sistemi (%12 → %15)
-- [x] Prefix/unary ifadeler
-- [x] Binary precedence
-- [x] Üye erişimi
-- [x] Çağrı
-- [x] `..` aralık
-- [x] `|` veri hattı
-- [x] Parantezli ifade
+## Aşama 3 — Runtime + hata modeli ✅
 
-### 2C — Kontrol akışı grammarı (%15 → %18)
-- [x] `... ise`
-- [x] `yoksa`
-- [x] `her ... içinden ...`
-- [x] `duruma göre`
-- [x] `bitir` komutunun AST olarak kabulü
-
-### 2D — Semantik analiz (%18 → %20)
-- [x] Sembol tablosu
-- [x] Scope çözümleme
-- [x] Tanımsız isim teşhisi ve yakın isim önerisi
-- [x] Yeniden tanımlama/binding kuralları
-- [x] İlk tip çıkarımı
-
-### 2E — Sertifikasyon (%20 → %22)
-- [x] Golden parser testleri
-- [x] Unicode NFC normalizasyon testleri
-- [x] Deterministik 100-varyant Unicode property testi
-- [x] Hatalı girinti testleri
-- [x] Diagnostic satır/sütun konum testleri
-- [x] Karşılaştırma operatörleri regression testi (`<=`, `>=`, `==`, `!=`)
-- [x] CI 3.11/3.12/3.13 tamamen yeşil
-
-## Aşama 3 — Çalıştırma motoru + hata modeli ✅
-
-Hedef ilerleme: **%22 → %32**
-
-- [x] Lexical scope ve çalışma çerçeveleri
-- [x] `akış` çağırma, parametre bağlama ve `ver`
-- [x] Binary/unary ifade yürütme
-- [x] `ise/yoksa`, `her`, `duruma göre`, `bitir`
-- [x] `dene/olmazsa` ve Şahin hata nesnesi
-- [x] `Binding` kaynak çözümü ve değişmez bağlama sözleşmesi
-- [x] Pipeline yürütme çekirdeği (`seç`, `sırala`, `ilk`)
-- [x] Kaynak konumlu runtime stack trace
-- [x] Deterministik yürütme testleri
-- [x] Runtime olumlu/olumsuz/regression testleri
-- [x] CI 3.11/3.12/3.13 tamamen yeşil
-
-### Aşama 3 hata-düzeltme kaydı
-
-İlk CI turunda iki test, runtime nedeniyle değil v0.1 grammarında çıplak `akış()` çağrısının statement olarak desteklenmemesi nedeniyle parserda kırıldı. Testler mevcut geçerli çağrı ifadesi sözleşmesi (`sonuç = akış()`) üzerinden yürütülecek şekilde düzeltildi; ikinci CI turunda üç Python matrisi de tamamen yeşil geçti. Çıplak çağrı statement desteği ayrı grammar genişlemesi olarak korunacaktır.
+- [x] Lexical scope/frame
+- [x] `akış`, parametre, `ver`
+- [x] Kontrol akışı ve pipeline runtime
+- [x] `Binding` çalışma sözleşmesi
+- [x] Kaynak konumlu hata zinciri
+- [x] Deterministik runtime regression testleri
+- [x] Python 3.11/3.12/3.13 CI
 
 ## Aşama 4 — Tip sistemi + güvenlik ✅
 
-Hedef ilerleme: **%32 → %42**
+- [x] Temel tip ve parametre/dönüş sözleşmeleri
+- [x] `TypeSpec` birleşik/opsiyonel tip modeli
+- [x] Parserda `X veya yok`
+- [x] Flow-sensitive `yok` daraltma
+- [x] `SHN-T302` opsiyonel alan güvenliği
+- [x] Varsayılan-kapalı capability modeli
+- [x] Type/security regression testleri
+- [x] Python 3.11/3.12/3.13 CI
 
-- [x] Nominal/temel tip sözleşmesi (`yazı`, `sayı`, `ondalık`, `para`, `evet_hayır`, `yok`)
-- [x] Akış parametre ve dönüş tipi doğrulaması
-- [x] Atama ve `Binding` tip bütünlüğü
-- [x] `yok` değerine doğrudan üye erişiminin statik engellenmesi
-- [x] Union/opsiyonel tip için Şahin'e özgü `TypeSpec` modeli
-- [x] Parserda `X veya yok` parametre/dönüş/kayıt alanı sözleşmesi
-- [x] Ana `SemanticAnalyzer` içinde TypeSpec taşıyan sembol modeli
-- [x] Flow-sensitive `yok` daraltma: `ise` ve `yoksa` dalları
-- [x] Daraltılmamış opsiyonel üye erişiminde `SHN-T302`
-- [x] Capability tabanlı dosya/ağ/veri erişimi için varsayılan-kapalı yetki modeli
-- [x] Statik diagnostic kodları ve Türkçe hata açıklamaları
-- [x] Type property/regression testleri
-- [x] Güvenlik olumsuz testleri
+## Aşama 5 — Standart kütüphane ✅
+
+Hedef ilerleme: **%42 → %51**
+
+- [x] NFC güvenli `Metin`: uzunluk, böl, birleştir, ara, dönüşüm
+- [x] Decimal tabanlı `Sayi`: güvenli dönüşüm, yuvarlama, para, aralık
+- [x] `Koleksiyon`: seç, dönüştür, sırala, ilk/son, grupla, tekilleştir
+- [x] `An`: UTC tabanlı zaman ve deterministik test saati enjeksiyonu
+- [x] `Json`: UTF-8, boyut sınırı, kontrollü çözümleme/serileştirme hataları
+- [x] `Dosya`: `dosya:oku` / `dosya:yaz` capability zorunluluğu ve boyut sınırı
+- [x] `Ag`: `ağ` capability, http/https kısıtı, timeout ve yanıt boyut sınırı
+- [x] `Guven`: CSPRNG, SHA-256/384/512, HMAC, sabit-zaman doğrulama
+- [x] MD5/SHA-1 ve tehlikeli düşük seviye kripto yüzeylerini varsayılan API dışında tutma
+- [x] Türkçe diagnostic kodları ve kontrollü hata sınıfları
+- [x] Unicode, bozuk/aşırı büyük veri, capability reddi ve güvenlik regression testleri
 - [x] Python 3.11/3.12/3.13 compile + test + `.shn` smoke CI tamamen yeşil
 
-### Aşama 4 doğrulama kaydı
+### Aşama 5 doğrulama kaydı
 
-Aşama 4 üç katmanda tamamlandı: önce temel tip/capability kuralları, ardından `TypeSpec` ve bağımsız flow ortamı, son olarak parser sözleşmesi ile ana `SemanticAnalyzer` entegrasyonu. `TypeKind` ortak çekirdek modüle ayrılarak semantik ve opsiyonel tip katmanları arasındaki döngüsel bağımlılık kaldırıldı. Opsiyonel parametre/dönüş sözleşmeleri ana sembol modelinde korunuyor; daraltılmamış alan erişimi `SHN-T302` üretirken `değer yok ise / yoksa` akışında mevcut değer dalı güvenli şekilde daraltılıyor. Son kalite turu Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke çalıştırmasıyla yeşil geçti.
+Standart kütüphane, başka dillerin API yüzeyini Türkçeleştirmek yerine Şahin'in capability ve güvenli-varsayılan modeline göre tasarlandı. Saf işlemler deterministik ve capability'siz; dış dünya işlemleri yetki kontrolünü dış kaynağa dokunmadan önce yapıyor. JSON/dosya/ağ işlemlerinde kaynak tüketimi sınırlandırıldı. Kripto yüzeyi yüksek seviyeli güvenli primitive'lerle sınırlandı. İlk kalite turunda Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke çalıştırması yeşil geçti.
+
+## Aşama 6 — Arayüz + görünüm motoru 🚧
+
+Hedef ilerleme: **%51 → %62**
+
+Planlanan kabul kapıları:
+
+- [ ] Şahin'e özgü immutable/kimlikli UI ağacı
+- [ ] `ekran`, `kart`, `başlık`, `metin`, `eylem` düğümlerinin runtime modeli
+- [ ] HTML/CSS seçicilerini kullanıcıya taşımayan görünüm sistemi
+- [ ] Tasarım tokenları, ölçü, boşluk, tipografi ve responsive kuralları
+- [ ] Olay modeli ve kontrollü state güncelleme
+- [ ] Klavye/focus/semantik erişilebilirlik sözleşmesi
+- [ ] Deterministik render snapshot/golden testleri
+- [ ] Browser adapter/WASM öncesi host-independent render IR
+- [ ] XSS/unsafe-content güvenlik testleri
+- [ ] Python 3.11/3.12/3.13 CI tamamen yeşil
 
 ## Sonraki kapı
 
-Aşama 5 — Standart kütüphane. Metin, sayı, koleksiyon, zaman, JSON, dosya, ağ ve kriptografi API'leri Şahin'in capability güvenlik modeliyle birlikte tasarlanacak; kullanıcıya Python/JS standart kütüphanelerinin Türkçeleştirilmiş kopyası sunulmayacak.
+Aşama 6 tamamlandıktan sonra **Aşama 7 — Sunucu + API + veri motoru** başlayacaktır.
