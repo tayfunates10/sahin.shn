@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from enum import Enum
 from difflib import get_close_matches
+from enum import Enum
 
 from .ast_nodes import (
     Assignment,
     Binary,
+    Binding,
     Call,
     Command,
     Declaration,
@@ -109,7 +110,7 @@ _DECLARATION_TYPES = {
 
 
 class SemanticAnalyzer:
-    """Şahin AST üzerinde ilk isim çözümleme ve tip çıkarımı katmanı."""
+    """Şahin AST üzerinde isim çözümleme ve ilk tip çıkarımı katmanı."""
 
     def __init__(self) -> None:
         self.global_scope = Scope()
@@ -140,17 +141,9 @@ class SemanticAnalyzer:
                 )
 
     def _statement(self, statement, scope: Scope) -> None:
-        if isinstance(statement, Assignment):
-            inferred = self._expression(statement.expression, scope)
-            existing = scope.symbols.get(statement.name)
-            if existing is not None and existing.binding and not statement.binding:
-                self._diagnose(
-                    f"{statement.name!r} '<-' ile bağlı bir değerdir; doğrudan '=' ile değiştirilemez.",
-                    statement.location,
-                    "SHN-S201",
-                )
-                return
-            if existing is not None and statement.binding:
+        if isinstance(statement, Binding):
+            inferred = self._expression(statement.source, scope)
+            if statement.name in scope.symbols:
                 self._diagnose(
                     f"{statement.name!r} adı zaten tanımlı; yeni bir '<-' bağlaması için farklı ad kullanın.",
                     statement.location,
@@ -160,8 +153,27 @@ class SemanticAnalyzer:
             scope.symbols[statement.name] = Symbol(
                 statement.name,
                 inferred,
-                "bağlama" if statement.binding else "değer",
-                statement.binding,
+                "bağlama",
+                True,
+                statement.location,
+            )
+            return
+
+        if isinstance(statement, Assignment):
+            inferred = self._expression(statement.expression, scope)
+            existing = scope.symbols.get(statement.name)
+            if existing is not None and existing.binding:
+                self._diagnose(
+                    f"{statement.name!r} '<-' ile bağlı bir değerdir; doğrudan '=' ile değiştirilemez.",
+                    statement.location,
+                    "SHN-S201",
+                )
+                return
+            scope.symbols[statement.name] = Symbol(
+                statement.name,
+                inferred,
+                "değer",
+                False,
                 statement.location,
             )
             return
@@ -243,9 +255,6 @@ class SemanticAnalyzer:
         if isinstance(statement, Command):
             if statement.subject is not None:
                 self._expression(statement.subject, scope)
-            # Komutlardaki tekil isimler tema/rol sabiti de olabildiği için v0.1'de
-            # yalnızca yapısal ifadeleri çözümleriz. Arrow hedefi ise çağrılabilir
-            # davranış olduğundan tam isim çözümlemesine girer.
             for argument in statement.arguments:
                 if not isinstance(argument, Name):
                     self._expression(argument, scope, allow_implicit_names=True)
