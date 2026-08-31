@@ -1,0 +1,32 @@
+name: Şahin CI
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Python ${{ matrix.python-version }} reference frontend
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+      - name: Compile check
+        run: python -m compileall -q src
+      - name: Tests
+        run: pytest -q
+      - name: Execute first Şahin program
+        run: python -m sahin.cli çalıştır examples/merhaba.shn
