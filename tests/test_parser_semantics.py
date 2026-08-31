@@ -3,7 +3,9 @@ import unicodedata
 import pytest
 
 from sahin.ast_nodes import (
+    Assignment,
     Binary,
+    Binding,
     Call,
     Declaration,
     ForEach,
@@ -48,6 +50,7 @@ akış satınAl ürün
     ]
     screen = program.statements[1]
     assert isinstance(screen, Declaration)
+    assert isinstance(screen.body[1], Binding)
     assert isinstance(screen.body[2], ForEach)
 
     flow = program.statements[2]
@@ -56,6 +59,13 @@ akış satınAl ürün
 
     model = analyze(program)
     assert model.ok, [diagnostic.format() for diagnostic in model.diagnostics]
+
+
+def test_binding_and_assignment_have_distinct_ast_nodes():
+    program = parse(tokenize('kaynak = "veri"\nbağlı <- kaynak\n'))
+
+    assert isinstance(program.statements[0], Assignment)
+    assert isinstance(program.statements[1], Binding)
 
 
 def test_expression_precedence_keeps_multiplication_tighter_than_addition():
@@ -78,10 +88,11 @@ def test_multiline_pipeline_is_one_expression():
 """
         )
     )
-    expression = program.statements[0].expression
+    binding = program.statements[0]
 
-    assert isinstance(expression, Pipeline)
-    assert [stage.name for stage in expression.stages] == ["seç", "sırala", "ilk"]
+    assert isinstance(binding, Binding)
+    assert isinstance(binding.source, Pipeline)
+    assert [stage.name for stage in binding.source.stages] == ["seç", "sırala", "ilk"]
 
 
 def test_match_try_and_implicit_flow_call_parse():
@@ -97,8 +108,9 @@ olmazsa hata
     program = parse(tokenize(source))
 
     assert isinstance(program.statements[0], MatchStatement)
-    assignment = program.statements[1].body[0]
-    assert isinstance(assignment.expression, Call)
+    binding = program.statements[1].body[0]
+    assert isinstance(binding, Binding)
+    assert isinstance(binding.source, Call)
 
 
 def test_semantics_infers_types_and_rejects_bound_value_overwrite():
@@ -119,7 +131,7 @@ yaz ads
 
 
 def test_missing_required_block_has_turkish_location_diagnostic():
-    with pytest.raises(ParserError, match="4 boşluk"):
+    with pytest.raises(ParserError, match=r"Satır 2, sütun 1:.*4 boşluk"):
         parse(tokenize('ekran Ana\nyaz "hata"\n'))
 
 
