@@ -4,7 +4,7 @@ Bu belge Şahin'in %100 tamamlanma yolunu ve kalite kapılarını tanımlar. Bir
 
 ## İlerleme modeli
 
-Toplam ilerleme: **%80**
+Toplam ilerleme: **%87**
 
 | Aşama | Ağırlık | Durum | Kabul kapısı |
 |---|---:|---|---|
@@ -17,8 +17,8 @@ Toplam ilerleme: **%80**
 | 6. Arayüz + görünüm motoru | %11 | ✅ Tamamlandı | UI ağacı, stil, olaylar, erişilebilirlik, browser hedefi |
 | 7. Sunucu + API + veri motoru | %11 | ✅ Tamamlandı | HTTP, uç, migration, sorgu, transaction |
 | 8. Modül + paket ekosistemi | %7 | ✅ Tamamlandı | manifest, lockfile, registry, imza |
-| 9. Araç zinciri | %7 | 🚧 Sıradaki | formatter, linter, test runner, LSP, debugger, REPL |
-| 10. WASM/native + performans | %7 | ⏳ | Şahin IR, WASM/native, benchmark |
+| 9. Araç zinciri | %7 | ✅ Tamamlandı | formatter, linter, test runner, LSP, debugger, REPL |
+| 10. WASM/native + performans | %7 | 🚧 Sıradaki | Şahin IR, WASM/native, benchmark |
 | 11. Self-hosting | %3 | ⏳ | kritik derleyici bölümlerinin Şahin ile derlenmesi |
 | 12. 1.0 sertifikasyonu | %3 | ⏳ | fuzz/security/compat/performance/release |
 
@@ -35,124 +35,46 @@ Toplam ilerleme: **%80**
 9. Şahin AST/IR başka dil AST'sinin Türkçeleştirilmiş biçimi olamaz.
 10. Bootstrap dili değişse bile grammar/AST/semantik sözleşmesi korunur.
 
-## Aşama 2 — Parser + semantik çekirdek ✅
+## Tamamlanan kalite kapıları
 
-- [x] Native Şahin AST + ayrı `Binding`
-- [x] Blok parserı ve ifade precedence
-- [x] `ise/yoksa`, yineleme, eşleştirme, pipeline, aralık
-- [x] Scope/symbol çözümleme ve ilk tip çıkarımı
-- [x] Türkçe kaynak konumlu diagnostics
-- [x] Golden + Unicode property + regression testleri
-- [x] Python 3.11/3.12/3.13 CI
+### Aşama 2 — Parser + semantik çekirdek ✅
+Native Şahin AST + ayrı `Binding`, blok parserı, precedence, kontrol ifadeleri, scope/symbol çözümleme, ilk tip çıkarımı, Türkçe diagnostics, golden/Unicode/regression testleri ve Python 3.11/3.12/3.13 CI tamamlandı.
 
-## Aşama 3 — Runtime + hata modeli ✅
+### Aşama 3 — Runtime + hata modeli ✅
+Lexical scope/frame, `akış`, parametre/dönüş, kontrol akışı, pipeline runtime, `Binding` çalışma sözleşmesi, kaynak konumlu hata zinciri ve deterministik runtime regression testleri tamamlandı.
 
-- [x] Lexical scope/frame
-- [x] `akış`, parametre, `ver`
-- [x] Kontrol akışı ve pipeline runtime
-- [x] `Binding` çalışma sözleşmesi
-- [x] Kaynak konumlu hata zinciri
-- [x] Deterministik runtime regression testleri
-- [x] Python 3.11/3.12/3.13 CI
+### Aşama 4 — Tip sistemi + güvenlik ✅
+`TypeSpec`, birleşik/opsiyonel tipler, `X veya yok`, flow-sensitive daraltma, parametre/dönüş/atama güvenliği ve varsayılan-kapalı capability modeli tamamlandı.
 
-## Aşama 4 — Tip sistemi + güvenlik ✅
+### Aşama 5 — Standart kütüphane ✅
+NFC güvenli metin, Decimal tabanlı sayı/para, deterministik koleksiyon, enjekte edilebilir saat, boyut sınırlı JSON, capability zorunlu dosya/ağ ve yüksek seviyeli güvenli kripto yüzeyi tamamlandı. Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke yeşil doğrulandı.
 
-- [x] Temel tip ve parametre/dönüş sözleşmeleri
-- [x] `TypeSpec` birleşik/opsiyonel tip modeli
-- [x] Parserda `X veya yok`
-- [x] Flow-sensitive `yok` daraltma
-- [x] `SHN-T302` opsiyonel alan güvenliği
-- [x] Varsayılan-kapalı capability modeli
-- [x] Type/security regression testleri
-- [x] Python 3.11/3.12/3.13 CI
+### Aşama 6 — Arayüz + görünüm motoru ✅
+Immutable/kimlikli UI ağacı, selector/DOM bağımsız görünüm modeli, tasarım tokenları, responsive kurallar, immutable state, erişilebilirlik, host-independent browser adapter ve XSS/unsafe-content fail-closed testleri tamamlandı.
 
-## Aşama 5 — Standart kütüphane ✅
+### Aşama 7 — Sunucu + API + veri motoru ✅
+Host-independent HTTP/uç modeli, doğrulama zinciri, `ModelMeta`/migration, SQL metni üretmeyen `QueryIR`, yapılandırılmış backend parametreleri, fail-closed transaction ve veri/ağ capability kontrolleri tamamlandı.
 
-Hedef ilerleme: **%42 → %51**
+### Aşama 8 — Modül + paket ekosistemi ✅
+Immutable manifest, deterministik lockfile, SHA-256 bütünlük, provenance/dependency-confusion koruması, deterministic semver çözümleme, signer trust/revocation, offline cache yeniden doğrulaması ve atomic optimistic-concurrency install transaction tamamlandı.
 
-- [x] NFC güvenli `Metin`: uzunluk, böl, birleştir, ara, dönüşüm
-- [x] Decimal tabanlı `Sayi`: güvenli dönüşüm, yuvarlama, para, aralık
-- [x] `Koleksiyon`: seç, dönüştür, sırala, ilk/son, grupla, tekilleştir
-- [x] `An`: UTC tabanlı zaman ve deterministik test saati enjeksiyonu
-- [x] `Json`: UTF-8, boyut sınırı, kontrollü çözümleme/serileştirme hataları
-- [x] `Dosya`: `dosya:oku` / `dosya:yaz` capability zorunluluğu ve boyut sınırı
-- [x] `Ag`: `ağ` capability, http/https kısıtı, timeout ve yanıt boyut sınırı
-- [x] `Guven`: CSPRNG, SHA-256/384/512, HMAC, sabit-zaman doğrulama
-- [x] MD5/SHA-1 ve tehlikeli düşük seviye kripto yüzeylerini varsayılan API dışında tutma
-- [x] Türkçe diagnostic kodları ve kontrollü hata sınıfları
-- [x] Unicode, bozuk/aşırı büyük veri, capability reddi ve güvenlik regression testleri
-- [x] Python 3.11/3.12/3.13 compile + test + `.shn` smoke CI tamamen yeşil
+### Aşama 9 — Araç zinciri ✅
+Hedef ilerleme: **%80 → %87**
 
-### Aşama 5 doğrulama kaydı
+- [x] Deterministik ve idempotent canonical formatter
+- [x] Aynı Lexer/Parser/SemanticAnalyzer zincirini kullanan kaynak konumlu linter
+- [x] Deterministik keşif yapan ve başarısız testleri gizlemeyen native test runner
+- [x] Diagnostics, completion, hover, go-to-definition ve symbol bilgisi için semantic-backed LSP çekirdeği
+- [x] Runtime state'ini değiştirmeden breakpoint, step ve frame/scope inspection sağlayan debugger çekirdeği
+- [x] Varsayılan-kapalı capability modeli, kaynak bütçeleri ve kalıcı kontrollü scope ile REPL
+- [x] Runtime hata durumunda REPL state/history atomik rollback
+- [x] Başarısız `<-` binding'in sonraki girdilere sızmamasını doğrulayan regression testi
+- [x] Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke CI tamamen yeşil
 
-Standart kütüphane, başka dillerin API yüzeyini Türkçeleştirmek yerine Şahin'in capability ve güvenli-varsayılan modeline göre tasarlandı. Saf işlemler deterministik ve capability'siz; dış dünya işlemleri yetki kontrolünü dış kaynağa dokunmadan önce yapıyor. JSON/dosya/ağ işlemlerinde kaynak tüketimi sınırlandırıldı. Kripto yüzeyi yüksek seviyeli güvenli primitive'lerle sınırlandı. İlk kalite turunda Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke çalıştırması yeşil geçti.
+### Aşama 9 doğrulama kaydı
 
-## Aşama 6 — Arayüz + görünüm motoru ✅
-
-Hedef ilerleme: **%51 → %62**
-
-- [x] Şahin'e özgü immutable/kimlikli UI ağacı
-- [x] `ekran`, `kart`, `başlık`, `metin`, `eylem` düğümlerinin runtime modeli
-- [x] HTML/CSS seçicilerini kullanıcıya taşımayan temel görünüm sistemi
-- [x] Tasarım tokenları, tipografi ve responsive kuralları
-- [x] Olay modelinin immutable render sözleşmesi
-- [x] Kontrollü, immutable ve sürümlü state güncelleme modeli
-- [x] Klavye/focus/semantik erişilebilirlik çekirdek sözleşmesi
-- [x] Deterministik render snapshot/golden testleri
-- [x] Browser adapter/WASM öncesi host-independent render IR
-- [x] XSS/unsafe-content varsayılan-kapalı güvenlik testleri
-- [x] Browser adapter sınırı ve adapter contract/security testleri
-- [x] Python 3.11/3.12/3.13 CI tamamen yeşil
-
-### Aşama 6 doğrulama kaydı
-
-Render modeli DOM veya HTML etiketi taşımayan `Dugum`/`RenderIR` yapısına dayanır. Düğümler immutable'dır, kimlikler NFC normalize edilir ve ağaç genelinde yinelenen kimlikler reddedilir. Etkileşimli `eylem` düğümleri erişilebilir etiket ve focus semantiği taşır. Kullanıcı metni host adapterına aktarılırken varsayılan olarak kaçırılır; ham içerik açık izin olmadan oluşturulamaz. Görünüm modeli selector/CSS sözdizimi yerine Şahin'e özgü ölçü, tasarım tokenı ve responsive eşik değerleri kullanır. UI state sürümlü ve immutable'dır; state işlemleri yalnızca açıkça izin verilmiş alanları değiştirebilir. Browser adapter sözleşmesi HTML metni üretmez, host ağacını yapılandırılmış veri olarak taşır ve kullanıcı metnini executable markup olarak yorumlamaz. Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke kalite kapısı yeşil geçti.
-
-## Aşama 7 — Sunucu + API + veri motoru ✅
-
-Hedef ilerleme: **%62 → %73**
-
-- [x] Host-independent HTTP istek/yanıt modeli
-- [x] `uç` tanımı ve route çözümleme
-- [x] Yöntem, yol parametresi, sorgu ve gövde doğrulama
-- [x] Yapılandırılmış Türkçe hata/yanıt sözleşmesi
-- [x] `ModelMeta` / `ModelField` veri metadata modeli
-- [x] Sıralı, benzersiz sürümlü `MigrationPlan` / `MigrationStep`
-- [x] SQL metni üretmeyen `QueryIR`
-- [x] Yapılandırılmış parametre taşıyan `BackendQuery` adapter sınırı
-- [x] Fail-closed transaction başlat/commit/rollback sözleşmesi
-- [x] Veri/ağ capability kontrolleri
-- [x] Deterministik adapter ve olumlu/olumsuz/security/regression testleri
-- [x] Injection, path/query/body ve transaction failure regression testleri
-- [x] Python 3.11/3.12/3.13 compile + test + `.shn` smoke CI tamamen yeşil
-
-### Aşama 7 doğrulama kaydı
-
-HTTP ve veri IR host-independent tutuldu; Şahin kullanıcısına doğrudan framework route API'si veya SQL string'i yazdırılmıyor. Sorgu değerleri string birleştirme yerine yapılandırılmış parametreler olarak backend adapter sınırına taşınıyor. Transaction hataları fail-closed rollback ile sonuçlanıyor ve dış dünya veri/ağ işlemleri capability kontrolünden önce yürütülmüyor. PR #18 ve PR #19 ile kabul kriterleri tamamlandı; PR #19 kalite kapısında Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke tamamen yeşil geçti.
-
-## Aşama 8 — Modül + paket ekosistemi ✅
-
-Hedef ilerleme: **%73 → %80**
-
-- [x] Immutable paket manifesti ve deterministik canonical manifest
-- [x] Deterministik lockfile üretimi
-- [x] SHA-256 paket bütünlük doğrulaması
-- [x] Registry provenance eşleştirmesi ve dependency-confusion koruması
-- [x] `X.Y.Z`, `^X.Y.Z`, `~X.Y.Z` sürüm/uyumluluk kuralları
-- [x] Uyumlu adaylar arasında deterministik en yüksek sürüm seçimi
-- [x] Provenance zorunlu `RegistryAdapter` sınırı
-- [x] Signer trust/revocation ve fail-closed paket imza doğrulaması
-- [x] Bütünlük ile imzanın bağlanması
-- [x] Her okumada yeniden doğrulanan offline cache
-- [x] Atomic install transaction ve rollback sözleşmesi
-- [x] Revision tabanlı optimistic concurrency ile stale commit/rollback koruması
-- [x] Path traversal, bozuk paket, provenance, signature, revocation ve transaction regression/security testleri
-- [x] Python 3.11/3.12/3.13 compile + test + `.shn` smoke CI tamamen yeşil
-
-### Aşama 8 doğrulama kaydı
-
-Paket çözümleme ve kurulum modeli fail-closed tasarlandı. Registry provenance paketin adı ve sürümünden bağımsız olarak doğrulanıyor; dependency-confusion riski için beklenen kaynakla uyuşmayan aday reddediliyor. Paket içeriği SHA-256 bütünlük ve signer trust/revocation doğrulamasından geçmeden kabul edilmiyor. Offline cache güvenilir kabul edilmiyor; her okumada yeniden doğrulanıyor. Kurulum transaction'ları atomic tutuluyor ve revision tabanlı optimistic concurrency sayesinde eski bir transaction daha yeni başarılı state'i silemiyor veya üstüne commit edemiyor. PR #22, #23 ve #24 ile kabul kriterleri tamamlandı; PR #24'ün son head'i için Şahin CI başarıyla tamamlandı ve Python 3.11/3.12/3.13 kalite matrisi yeşil doğrulandı.
+Formatter, linter, native test runner, LSP, debugger ve REPL parçaları ayrı PR'larla tamamlandı. Son REPL kalite turunda runtime sırasında state değiştirdikten sonra hata veren bir snippet'in session state'ini sessizce kirletebildiği P1 kusuru bulundu; global frame snapshot/rollback ile kök neden düzeltildi ve iki regression testi eklendi. Düzeltmenin exact head'i Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke adımlarıyla yeşil doğrulandı. PR #32 squash-merge edilerek Aşama 9 kalite kapısı kapatıldı; Issue #25 tamamlandı.
 
 ## Sonraki kapı
 
-**Aşama 9 — Araç zinciri** için canonical formatter, linter, native test runner, LSP adapter sınırı, debugger çekirdeği ve capability güvenli REPL geliştirilecektir. Hedef ilerleme **%80 → %87**.
+**Aşama 10 — Şahin IR + WASM/native backend + performans** artık açık geliştirme aşamasıdır (Issue #33). Hedef ilerleme **%87 → %94**. Bu aşama; Şahin'e özgü deterministik IR, WASM/native adapter sınırları, referans runtime ile semantik eşdeğerlik, capability/güvenlik korunumu ve tekrarlanabilir benchmark baseline'ı tamamlanmadan bitmiş sayılmayacaktır.
