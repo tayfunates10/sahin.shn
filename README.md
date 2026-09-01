@@ -53,7 +53,9 @@ akış satınAl ürün
 **Genel ilerleme: %87**
 
 Tamamlanan son kalite kapısı: **Aşama 9 — Araç zinciri**  
-Sıradaki aşama: **Aşama 10 — Şahin IR + WASM/native backend + performans**
+Aktif aşama: **Aşama 10 — Şahin IR + WASM/native backend + performans**
+
+Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları ve referans runtime ile backend planları arasındaki semantik eşdeğerlik oracle'ı `main` üzerinde doğrulandı. Tekrarlanabilir benchmark/performance baseline, tam IR kapsamı ve kalan property/security kapıları bitmeden ilerleme %94'e çıkarılmaz.
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -71,7 +73,7 @@ Sıradaki aşama: **Aşama 10 — Şahin IR + WASM/native backend + performans**
 | 7 — Sunucu + API + veri motoru | %73 | ✅ |
 | 8 — Modül + paket ekosistemi | %80 | ✅ |
 | 9 — Formatter + linter + test runner + LSP + debugger + REPL | %87 | ✅ |
-| 10 — Şahin IR + WASM/native backend + performans | %94 | 🚧 Sıradaki |
+| 10 — Şahin IR + WASM/native backend + performans | %94 | 🚧 Devam ediyor |
 | 11 — Self-hosting | %97 | ⏳ |
 | 12 — Fuzz/security/compatibility ve 1.0 sertifikasyonu | %100 | ⏳ |
 
