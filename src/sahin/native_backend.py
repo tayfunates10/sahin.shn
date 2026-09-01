@@ -44,8 +44,11 @@ def _validate_non_temp_operand(
     operand: str,
     instruction_index: int,
     role: str,
+    *,
+    allow_percent_operator: bool = False,
 ) -> None:
-    if not operand or operand.startswith("%"):
+    is_reserved_temp_syntax = operand.startswith("%") and not (allow_percent_operator and operand == "%")
+    if not operand or is_reserved_temp_syntax:
         _schema_error(instruction, instruction_index, f"{role} geçici değer olamaz ve boş bırakılamaz")
 
 
@@ -91,7 +94,13 @@ def _validate_instruction_schema(
     if opcode == "binary":
         if len(operands) != 3 or result is None:
             _schema_error(instruction, instruction_index, "binary operatör + 2 geçici operand ve sonuç üretmelidir")
-        _validate_non_temp_operand(instruction, operands[0], instruction_index, "operatör")
+        _validate_non_temp_operand(
+            instruction,
+            operands[0],
+            instruction_index,
+            "operatör",
+            allow_percent_operator=True,
+        )
         _validate_temp_operand(operands[1], defined, instruction_index)
         _validate_temp_operand(operands[2], defined, instruction_index)
         return
