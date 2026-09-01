@@ -5,7 +5,8 @@ import unicodedata
 import pytest
 
 from sahin.lexer import LexerError
-from sahin.toolchain import format_source
+from sahin.parser import ParserError
+from sahin.toolchain import format_source, lint_source
 
 
 def test_formatter_is_idempotent_and_has_final_newline() -> None:
@@ -46,3 +47,29 @@ def test_formatter_rejects_tab_indentation() -> None:
 def test_formatter_rejects_noncanonical_indentation_width() -> None:
     with pytest.raises(LexerError):
         format_source("eger ise\n  yaz 1\n")
+
+
+def test_linter_reuses_semantic_diagnostics_with_source_location() -> None:
+    diagnostics = lint_source("yaz eksik\n")
+
+    assert len(diagnostics) == 1
+    diagnostic = diagnostics[0]
+    assert diagnostic.rule == "SHN-S301"
+    assert diagnostic.line == 1
+    assert diagnostic.column == 5
+    assert "tanımlı değil" in diagnostic.message
+    assert diagnostic.format().startswith("SHN-S301 · Satır 1, sütun 5:")
+
+
+def test_linter_has_no_diagnostics_for_valid_source() -> None:
+    assert lint_source("deger = 1\nyaz deger\n") == ()
+
+
+def test_linter_fails_closed_on_lexical_errors() -> None:
+    with pytest.raises(LexerError):
+        lint_source("eger ise\n\tyaz 1\n")
+
+
+def test_linter_fails_closed_on_parser_errors() -> None:
+    with pytest.raises(ParserError):
+        lint_source("yaz\n")
