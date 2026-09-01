@@ -47,6 +47,7 @@ class Endpoint:
     method: HttpMethod
     path: str
     handler: Callable[[Mapping[str, str], Mapping[str, str], Any], HttpResponse]
+    path_validators: Mapping[str, Validator] = field(default_factory=dict)
     query_validators: Mapping[str, Validator] = field(default_factory=dict)
     body_validator: Validator | None = None
 
@@ -62,8 +63,14 @@ class Router:
             params = _match_path(endpoint.path, request.path)
             if params is None:
                 continue
-            query = _validate_query(endpoint.query_validators, request.query)
-            body = endpoint.body_validator(request.body) if endpoint.body_validator else request.body
+            params = _validate_fields(endpoint.path_validators, params, "SHN-H006", "yol parametresi")
+            query = _validate_fields(endpoint.query_validators, request.query, "SHN-H004", "sorgu alanı")
+            body = request.body
+            if endpoint.body_validator is not None:
+                try:
+                    body = endpoint.body_validator(request.body)
+                except (TypeError, ValueError) as exc:
+                    raise ServerDataError("SHN-H005", "Geçersiz istek gövdesi.") from exc
             return endpoint.handler(params, query, body)
         return HttpResponse(404, {"hata": {"kod": "SHN-H404", "mesaj": "Uç bulunamadı."}})
 
@@ -88,15 +95,20 @@ def _match_path(pattern: str, path: str) -> dict[str, str] | None:
     return params
 
 
-def _validate_query(validators: Mapping[str, Validator], query: Mapping[str, str]) -> dict[str, str]:
-    validated: dict[str, str] = {}
+def _validate_fields(
+    validators: Mapping[str, Validator],
+    values: Mapping[str, Any],
+    invalid_code: str,
+    label: str,
+) -> dict[str, Any]:
+    validated: dict[str, Any] = dict(values)
     for name, validator in validators.items():
-        if name not in query:
-            raise ServerDataError("SHN-H003", f"Zorunlu sorgu alanı eksik: {name}")
+        if name not in values:
+            raise ServerDataError("SHN-H003", f"Zorunlu {label} eksik: {name}")
         try:
-            validated[name] = validator(query[name])
+            validated[name] = validator(values[name])
         except (TypeError, ValueError) as exc:
-            raise ServerDataError("SHN-H004", f"Geçersiz sorgu alanı: {name}") from exc
+            raise ServerDataError(invalid_code, f"Geçersiz {label}: {name}") from exc
     return validated
 
 
@@ -134,19 +146,100 @@ class QueryIR:
             raise ServerDataError("SHN-D003", "Sorgu limiti 1..1000 aralığında olmalıdır.")
 
 
+@dataclass(frozen=True, slots=True)
+class BackendFilter:
+    field: str
+    op: QueryOp
+    parameter_index: int
+
+
+@dataclass(frozen=True, slots=True)
+class BackendQuery:
+    """Host adapterına taşınan, SQL metni içermeyen parametreli sorgu sözleşmesi."""
+
+    model: str
+    fields: tuple[str, ...]
+    filters: tuple[BackendFilter, ...]
+    parameters: tuple[Any, ...]
+    limit: int
+
+
+def compile_backend_query(query: QueryIR) -> BackendQuery:
+    parameters = tuple(item.value for item in query.filters)
+    filters = tuple(
+        BackendFilter(item.field, item.op, index)
+        for index, item in enumerate(query.filters)
+    )
+    return BackendQuery(query.model, query.fields, filters, parameters, query.limit)
+
+
+@dataclass(frozen=True, slots=True)
+class ModelField:
+    name: str
+    type_name: str
+    nullable: bool = False
+
+    def __post_init__(self) -> None:
+        _safe_identifier(self.name)
+        _safe_identifier(self.type_name)
+
+
+@dataclass(frozen=True, slots=True)
+class ModelMeta:
+    name: str
+    fields: tuple[ModelField, ...]
+
+    def __post_init__(self) -> None:
+        _safe_identifier(self.name)
+        names = [item.name for item in self.fields]
+        if len(names) != len(set(names)):
+            raise ServerDataError("SHN-M001", "Model alan adları yinelenemez.")
+
+
+class MigrationKind(str, Enum):
+    CREATE_MODEL = "model_oluştur"
+    ADD_FIELD = "alan_ekle"
+    REMOVE_FIELD = "alan_kaldır"
+
+
+@dataclass(frozen=True, slots=True)
+class MigrationStep:
+    version: int
+    kind: MigrationKind
+    model: str
+    field: ModelField | None = None
+
+    def __post_init__(self) -> None:
+        if self.version < 1:
+            raise ServerDataError("SHN-M002", "Migration sürümü pozitif olmalıdır.")
+        _safe_identifier(self.model)
+        if self.kind is not MigrationKind.CREATE_MODEL and self.field is None:
+            raise ServerDataError("SHN-M003", "Alan migration adımında alan metadata zorunludur.")
+
+
+@dataclass(frozen=True, slots=True)
+class MigrationPlan:
+    steps: tuple[MigrationStep, ...]
+
+    def __post_init__(self) -> None:
+        versions = [step.version for step in self.steps]
+        if versions != sorted(versions) or len(versions) != len(set(versions)):
+            raise ServerDataError("SHN-M004", "Migration sürümleri benzersiz ve artan olmalıdır.")
+
+
 def _safe_identifier(value: str) -> None:
     if not value or not value.replace("_", "").isalnum() or not value[0].isalpha():
         raise ServerDataError("SHN-D001", f"Geçersiz veri tanımlayıcısı: {value!r}")
 
 
 class DataAdapter(Protocol):
-    def execute(self, query: QueryIR) -> Sequence[Mapping[str, Any]]: ...
+    def execute(self, query: BackendQuery) -> Sequence[Mapping[str, Any]]: ...
 
     def begin(self) -> "TransactionAdapter": ...
 
 
 class TransactionAdapter(Protocol):
-    def execute(self, query: QueryIR) -> Sequence[Mapping[str, Any]]: ...
+    def execute(self, query: BackendQuery) -> Sequence[Mapping[str, Any]]: ...
 
     def commit(self) -> None: ...
 
@@ -160,7 +253,7 @@ class DataEngine:
 
     def read(self, query: QueryIR) -> Sequence[Mapping[str, Any]]:
         self.capabilities.require(Capability.VERI_OKU)
-        return self.adapter.execute(query)
+        return self.adapter.execute(compile_backend_query(query))
 
     def transaction(self, action: Callable[[TransactionAdapter], Any]) -> Any:
         self.capabilities.require(Capability.VERI_YAZ)
