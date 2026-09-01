@@ -4,7 +4,7 @@ Bu belge Şahin'in %100 tamamlanma yolunu ve kalite kapılarını tanımlar. Bir
 
 ## İlerleme modeli
 
-Toplam ilerleme: **%73**
+Toplam ilerleme: **%80**
 
 | Aşama | Ağırlık | Durum | Kabul kapısı |
 |---|---:|---|---|
@@ -16,8 +16,8 @@ Toplam ilerleme: **%73**
 | 5. Standart kütüphane | %9 | ✅ Tamamlandı | metin/sayı/koleksiyon/zaman/json/dosya/ağ/kripto |
 | 6. Arayüz + görünüm motoru | %11 | ✅ Tamamlandı | UI ağacı, stil, olaylar, erişilebilirlik, browser hedefi |
 | 7. Sunucu + API + veri motoru | %11 | ✅ Tamamlandı | HTTP, uç, migration, sorgu, transaction |
-| 8. Modül + paket ekosistemi | %7 | 🚧 Sıradaki | manifest, lockfile, registry, imza |
-| 9. Araç zinciri | %7 | ⏳ | formatter, linter, test runner, LSP, debugger, REPL |
+| 8. Modül + paket ekosistemi | %7 | ✅ Tamamlandı | manifest, lockfile, registry, imza |
+| 9. Araç zinciri | %7 | 🚧 Sıradaki | formatter, linter, test runner, LSP, debugger, REPL |
 | 10. WASM/native + performans | %7 | ⏳ | Şahin IR, WASM/native, benchmark |
 | 11. Self-hosting | %3 | ⏳ | kritik derleyici bölümlerinin Şahin ile derlenmesi |
 | 12. 1.0 sertifikasyonu | %3 | ⏳ | fuzz/security/compat/performance/release |
@@ -130,6 +130,29 @@ Hedef ilerleme: **%62 → %73**
 
 HTTP ve veri IR host-independent tutuldu; Şahin kullanıcısına doğrudan framework route API'si veya SQL string'i yazdırılmıyor. Sorgu değerleri string birleştirme yerine yapılandırılmış parametreler olarak backend adapter sınırına taşınıyor. Transaction hataları fail-closed rollback ile sonuçlanıyor ve dış dünya veri/ağ işlemleri capability kontrolünden önce yürütülmüyor. PR #18 ve PR #19 ile kabul kriterleri tamamlandı; PR #19 kalite kapısında Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke tamamen yeşil geçti.
 
+## Aşama 8 — Modül + paket ekosistemi ✅
+
+Hedef ilerleme: **%73 → %80**
+
+- [x] Immutable paket manifesti ve deterministik canonical manifest
+- [x] Deterministik lockfile üretimi
+- [x] SHA-256 paket bütünlük doğrulaması
+- [x] Registry provenance eşleştirmesi ve dependency-confusion koruması
+- [x] `X.Y.Z`, `^X.Y.Z`, `~X.Y.Z` sürüm/uyumluluk kuralları
+- [x] Uyumlu adaylar arasında deterministik en yüksek sürüm seçimi
+- [x] Provenance zorunlu `RegistryAdapter` sınırı
+- [x] Signer trust/revocation ve fail-closed paket imza doğrulaması
+- [x] Bütünlük ile imzanın bağlanması
+- [x] Her okumada yeniden doğrulanan offline cache
+- [x] Atomic install transaction ve rollback sözleşmesi
+- [x] Revision tabanlı optimistic concurrency ile stale commit/rollback koruması
+- [x] Path traversal, bozuk paket, provenance, signature, revocation ve transaction regression/security testleri
+- [x] Python 3.11/3.12/3.13 compile + test + `.shn` smoke CI tamamen yeşil
+
+### Aşama 8 doğrulama kaydı
+
+Paket çözümleme ve kurulum modeli fail-closed tasarlandı. Registry provenance paketin adı ve sürümünden bağımsız olarak doğrulanıyor; dependency-confusion riski için beklenen kaynakla uyuşmayan aday reddediliyor. Paket içeriği SHA-256 bütünlük ve signer trust/revocation doğrulamasından geçmeden kabul edilmiyor. Offline cache güvenilir kabul edilmiyor; her okumada yeniden doğrulanıyor. Kurulum transaction'ları atomic tutuluyor ve revision tabanlı optimistic concurrency sayesinde eski bir transaction daha yeni başarılı state'i silemiyor veya üstüne commit edemiyor. PR #22, #23 ve #24 ile kabul kriterleri tamamlandı; PR #24'ün son head'i için Şahin CI başarıyla tamamlandı ve Python 3.11/3.12/3.13 kalite matrisi yeşil doğrulandı.
+
 ## Sonraki kapı
 
-**Aşama 8 — Modül + paket ekosistemi** için manifest, deterministik lockfile, bağımlılık çözümleme, registry/provenance ve paket imzası/revocation güvenlik modeli geliştirilecektir. Hedef ilerleme **%73 → %80**.
+**Aşama 9 — Araç zinciri** için canonical formatter, linter, native test runner, LSP adapter sınırı, debugger çekirdeği ve capability güvenli REPL geliştirilecektir. Hedef ilerleme **%80 → %87**.
