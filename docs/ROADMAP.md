@@ -82,15 +82,17 @@ Hedef ilerleme: **%87 → %94**
 
 - [ ] Şahin'e özgü, sürümlü ve deterministik IR sözleşmesi tamamen kapsanmış
 - [ ] Tüm gerekli AST/semantic düğümleri fail-closed lowering ile desteklenmiş
-- [ ] WASM backend adapter sınırı ve eşdeğerlik testleri
-- [ ] Native backend adapter sınırı ve eşdeğerlik testleri
-- [ ] Capability/güvenlik sınırlarının backendlerde korunduğu doğrulanmış
+- [x] WASM backend adapter sınırı ve mevcut IR v1 kapsamı için eşdeğerlik testleri
+- [x] Native backend adapter sınırı ve mevcut IR v1 kapsamı için eşdeğerlik testleri
+- [x] Mevcut adapter planlarında capability/güvenlik sınırlarının fail-closed korunduğu doğrulanmış
 - [ ] Tekrarlanabilir benchmark baseline'ı ve performans raporu
-- [ ] Property/security/regression test paketi
-- [ ] Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke tamamen yeşil
+- [ ] Property/security/regression test paketi tamamlanmış
+- [ ] Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke ile Aşama 10 final kapısı tamamen yeşil
 
-İlk geliştirme dilimi `feat/stage10-ir-core` dalında başlatıldı: semantik doğrulamadan sonra çalışan immutable `IRProgram`/`IRInstruction` modeli, kanonik serileştirme, deterministik geçici değer adlandırma, literal/name/unary/binary ifadeleri ile assignment/binding/write lowering'i ve desteklenmeyen düğümlerde sessiz fallback yerine fail-closed hata eklendi. Bu dilim CI ile doğrulanmadan hiçbir Aşama 10 kriteri tamamlandı işaretlenmez ve genel ilerleme **%87** olarak kalır.
+Doğrulanmış geliştirme dilimleri: deterministik Şahin IR çekirdeği, fail-closed WASM adapter sınırı, fail-closed native adapter sınırı ve referans runtime ↔ WASM/native plan semantik eşdeğerlik oracle'ı ayrı PR'larla `main`e alındı. PR #38'in exact-head CI'ı Python 3.11/3.12/3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke adımlarında yeşil tamamlandı.
+
+Aktif geliştirme dilimi `feat/stage10-benchmark-baseline`: sabit corpus, sürümlü rapor şeması, monotonic nanosecond örnekleri, warmup/iteration sınırları ve her ölçümde semantik eşdeğerliği yeniden doğrulayan benchmark harness'i ekleniyor. Bu dilim CI ile doğrulanıp merge edilmeden benchmark kriteri tamamlandı sayılmaz; genel ilerleme **%87** kalır.
 
 ## Sonraki kapı
 
-Aşama 10 Issue #33 altında devam ediyor. **%94** yalnızca IR kapsamı, WASM/native backend eşdeğerliği, güvenlik/capability korunumu, benchmark ve tüm CI kalite kapıları tamamlandığında gösterilecektir.
+Aşama 10 Issue #33 altında devam ediyor. **%94** yalnızca tam IR/semantic lowering kapsamı, backend güvenliği, tekrarlanabilir benchmark + performans raporu, property/security/regression paketi ve tüm CI kalite kapıları tamamlandığında gösterilecektir.
