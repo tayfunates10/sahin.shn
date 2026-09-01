@@ -3,12 +3,16 @@ import pytest
 from sahin.packages import (
     CachedPackage,
     Dependency,
+    InstallStore,
+    LockEntry,
+    MappingRegistryAdapter,
     PackageCache,
     PackageError,
     PackageManifest,
     PackageSignature,
     RegistryPackage,
     TrustStore,
+    VersionConstraint,
     content_hash,
     resolve_manifest,
     sign_archive,
@@ -105,3 +109,56 @@ def test_offline_cache_missing_package_fails_closed():
     package = pkg("eksik", "1.0.0", "https://paket.sahin.dev", b"x")
     with pytest.raises(PackageError):
         PackageCache().get_offline(package, TrustStore({"resmi": b"secret"}))
+
+
+def test_version_constraints_are_explicit_and_deterministic():
+    assert VersionConstraint("^1.2.3").accepts("1.9.0")
+    assert not VersionConstraint("^1.2.3").accepts("2.0.0")
+    assert VersionConstraint("~1.2.3").accepts("1.2.9")
+    assert not VersionConstraint("~1.2.3").accepts("1.3.0")
+    with pytest.raises(PackageError):
+        VersionConstraint("latest")
+
+
+def test_compatible_resolution_selects_highest_matching_version():
+    dep = Dependency("hesap", "^1.2.0", "https://kurum.example")
+    registry = {
+        "hesap": [
+            pkg("hesap", "1.2.1", dep.source, b"a"),
+            pkg("hesap", "1.9.0", dep.source, b"b"),
+            pkg("hesap", "2.0.0", dep.source, b"c"),
+        ]
+    }
+    lock = resolve_manifest(PackageManifest("uygulama", "0.1.0", (dep,)), registry)
+    assert lock.packages[0].version == "1.9.0"
+
+
+def test_registry_adapter_enforces_requested_provenance():
+    dep = Dependency("hesap", "1.0.0", "https://kurum.example")
+    adapter = MappingRegistryAdapter(
+        {"hesap": [
+            pkg("hesap", "1.0.0", dep.source, b"dogru"),
+            pkg("hesap", "1.0.0", "https://saldirgan.example", b"yanlis"),
+        ]}
+    )
+    lock = resolve_manifest(PackageManifest("uygulama", "0.1.0", (dep,)), adapter)
+    assert lock.packages[0].source == dep.source
+
+
+def test_install_transaction_rolls_back_on_error():
+    old = LockEntry("hesap", "1.0.0", "https://kurum.example", content_hash(b"old"))
+    new = LockEntry("hesap", "1.1.0", "https://kurum.example", content_hash(b"new"))
+    store = InstallStore({"hesap": old})
+    with pytest.raises(RuntimeError):
+        with store.transaction() as tx:
+            tx.stage(new)
+            raise RuntimeError("kurulum hatası")
+    assert store.installed["hesap"] == old
+
+
+def test_install_transaction_commits_only_when_successful():
+    new = LockEntry("hesap", "1.1.0", "https://kurum.example", content_hash(b"new"))
+    store = InstallStore()
+    with store.transaction() as tx:
+        tx.stage(new)
+    assert store.installed["hesap"] == new
