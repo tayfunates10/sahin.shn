@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 
 from .capabilities import Capability, CapabilitySet
@@ -83,9 +84,16 @@ class ReplSession:
 
         program = parse(tokenize(source))
         self._pending_output = []
+        runtime_snapshot = deepcopy(self._runtime.global_frame)
         try:
             values = self._runtime.execute(program)
         except Exception:
+            # Bir snippet çalışma sırasında state'i kısmen değiştirmiş olabilir.
+            # Başarısız değerlendirme history'ye girmediği için runtime state de
+            # aynı atomik sınırda geri alınmalı; aksi halde REPL geçmişi ile
+            # yürütme kapsamı birbirinden kopar.
+            self._runtime.global_frame = runtime_snapshot
+            self._runtime.values = self._runtime.global_frame.values
             self._pending_output = []
             raise
 
