@@ -50,10 +50,10 @@ akış satınAl ürün
 
 ## Durum
 
-**Genel ilerleme: %62**
+**Genel ilerleme: %73**
 
-Tamamlanan son kalite kapısı: **Aşama 6 — Arayüz + görünüm motoru**  
-Sıradaki aşama: **Aşama 7 — Sunucu + API + veri motoru**
+Tamamlanan son kalite kapısı: **Aşama 7 — Sunucu + API + veri motoru**  
+Sıradaki aşama: **Aşama 8 — Modül + paket ekosistemi**
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -68,8 +68,8 @@ Sıradaki aşama: **Aşama 7 — Sunucu + API + veri motoru**
 | 4 — Tip sistemi + güvenlik | %42 | ✅ |
 | 5 — Standart kütüphane | %51 | ✅ |
 | 6 — Arayüz + görünüm motoru | %62 | ✅ |
-| 7 — Sunucu + API + veri motoru | %73 | 🚧 Sıradaki |
-| 8 — Modül + paket ekosistemi | %80 | ⏳ |
+| 7 — Sunucu + API + veri motoru | %73 | ✅ |
+| 8 — Modül + paket ekosistemi | %80 | 🚧 Sıradaki |
 | 9 — Formatter + linter + test runner + LSP + debugger | %87 | ⏳ |
 | 10 — Şahin IR + WASM/native backend + performans | %94 | ⏳ |
 | 11 — Self-hosting | %97 | ⏳ |
@@ -111,6 +111,15 @@ Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-
 - HTML üretmeyen host-independent `BrowserAdapter` sınırı
 - kullanıcı içeriği için varsayılan kaçış ve unsafe-content fail-closed güvenliği
 - Unicode, responsive, state çakışması, adapter ve XSS regression testleri
+- Python 3.11 / 3.12 / 3.13 compile + test + gerçek `.shn` smoke CI: yeşil
+
+### Aşama 7
+- host-independent HTTP istek/yanıt ve `uç` route modeli
+- yöntem, yol, sorgu ve gövde doğrulama zinciri
+- SQL metni üretmeyen `QueryIR` / `BackendQuery` ve yapılandırılmış parametreler
+- `ModelMeta` / `ModelField` veri metadata modeli ve sıralı `MigrationPlan`
+- fail-closed transaction commit/rollback sözleşmesi
+- veri/ağ capability kontrolleri ve injection/path/query/body/transaction regression testleri
 - Python 3.11 / 3.12 / 3.13 compile + test + gerçek `.shn` smoke CI: yeşil
 
 ## Kalite ve geliştirme akışı
