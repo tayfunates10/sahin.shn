@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from hashlib import sha256
 import hmac
 import json
-from typing import Iterable, Mapping
+import re
+from typing import Iterable, Mapping, Protocol
 
 
 class PackageError(ValueError):
@@ -19,6 +20,51 @@ def content_hash(data: bytes) -> str:
     return "sha256:" + sha256(data).hexdigest()
 
 
+_VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+
+
+@dataclass(frozen=True, order=True)
+class Version:
+    major: int
+    minor: int
+    patch: int
+
+    @classmethod
+    def parse(cls, raw: str) -> "Version":
+        match = _VERSION_RE.fullmatch(raw)
+        if match is None:
+            raise PackageError("sürüm X.Y.Z biçiminde olmalıdır")
+        return cls(*(int(part) for part in match.groups()))
+
+    def __str__(self) -> str:
+        return f"{self.major}.{self.minor}.{self.patch}"
+
+
+@dataclass(frozen=True)
+class VersionConstraint:
+    raw: str
+
+    def __post_init__(self) -> None:
+        if not self.raw:
+            raise PackageError("sürüm kuralı zorunludur")
+        prefix = self.raw[0] if self.raw[0] in "^~" else ""
+        Version.parse(self.raw[1:] if prefix else self.raw)
+
+    def accepts(self, version: str) -> bool:
+        target = Version.parse(version)
+        prefix = self.raw[0] if self.raw[0] in "^~" else ""
+        base = Version.parse(self.raw[1:] if prefix else self.raw)
+        if not prefix:
+            return target == base
+        if prefix == "~":
+            return target.major == base.major and target.minor == base.minor and target >= base
+        if base.major > 0:
+            return target.major == base.major and target >= base
+        if base.minor > 0:
+            return target.major == 0 and target.minor == base.minor and target >= base
+        return target.major == 0 and target.minor == 0 and target.patch == base.patch
+
+
 @dataclass(frozen=True, order=True)
 class Dependency:
     name: str
@@ -28,8 +74,7 @@ class Dependency:
     def __post_init__(self) -> None:
         if not self.name or "/" in self.name or "\\" in self.name or ".." in self.name:
             raise PackageError("geçersiz paket adı")
-        if not self.version:
-            raise PackageError("sürüm zorunludur")
+        VersionConstraint(self.version)
         if not self.source.startswith("https://"):
             raise PackageError("paket kaynağı güvenli https kökeni olmalıdır")
 
@@ -68,6 +113,7 @@ class RegistryPackage:
 
     def __post_init__(self) -> None:
         Dependency(self.name, self.version, self.source)
+        Version.parse(self.version)
         if not self.archive_hash.startswith("sha256:") or len(self.archive_hash) != 71:
             raise PackageError("geçersiz paket bütünlük özeti")
 
@@ -102,20 +148,50 @@ class Lockfile:
         )
 
 
+class RegistryAdapter(Protocol):
+    def candidates(self, name: str, source: str) -> Iterable[RegistryPackage]:
+        """Return candidates only for the explicitly requested provenance."""
+
+
+@dataclass(frozen=True)
+class MappingRegistryAdapter:
+    packages: Mapping[str, Iterable[RegistryPackage]]
+
+    def candidates(self, name: str, source: str) -> Iterable[RegistryPackage]:
+        return tuple(item for item in self.packages.get(name, ()) if item.source == source)
+
+
+def _adapter_for(
+    registry: Mapping[str, Iterable[RegistryPackage]] | RegistryAdapter,
+) -> RegistryAdapter:
+    if isinstance(registry, Mapping):
+        return MappingRegistryAdapter(registry)
+    return registry
+
+
 def resolve_manifest(
     manifest: PackageManifest,
-    registry: Mapping[str, Iterable[RegistryPackage]],
+    registry: Mapping[str, Iterable[RegistryPackage]] | RegistryAdapter,
 ) -> Lockfile:
+    adapter = _adapter_for(registry)
     locked: list[LockEntry] = []
     for dep in sorted(manifest.dependencies):
+        constraint = VersionConstraint(dep.version)
         candidates = [
             item
-            for item in registry.get(dep.name, ())
-            if item.version == dep.version and item.source == dep.source
+            for item in adapter.candidates(dep.name, dep.source)
+            if item.name == dep.name and item.source == dep.source and constraint.accepts(item.version)
         ]
-        if len(candidates) != 1:
+        if not candidates:
             raise PackageError(f"bağımlılık güvenle çözümlenemedi: {dep.name}")
-        chosen = candidates[0]
+        by_version: dict[Version, list[RegistryPackage]] = {}
+        for item in candidates:
+            by_version.setdefault(Version.parse(item.version), []).append(item)
+        selected_version = max(by_version)
+        selected = by_version[selected_version]
+        if len(selected) != 1:
+            raise PackageError(f"bağımlılık güvenle çözümlenemedi: {dep.name}")
+        chosen = selected[0]
         locked.append(LockEntry(chosen.name, chosen.version, chosen.source, chosen.archive_hash))
     return Lockfile(content_hash(manifest.canonical_bytes()), tuple(sorted(locked)))
 
@@ -206,3 +282,54 @@ class PackageCache:
         verify_archive(entry.archive, package.archive_hash)
         verify_signed_archive(entry.archive, entry.signature, trust)
         return entry.archive
+
+
+class InstallStore:
+    """Atomic in-memory install state with explicit rollback semantics."""
+
+    def __init__(self, installed: Mapping[str, LockEntry] | None = None) -> None:
+        self._installed = dict(installed or {})
+
+    @property
+    def installed(self) -> Mapping[str, LockEntry]:
+        return dict(self._installed)
+
+    def transaction(self) -> "InstallTransaction":
+        return InstallTransaction(self)
+
+
+class InstallTransaction:
+    def __init__(self, store: InstallStore) -> None:
+        self._store = store
+        self._snapshot = dict(store._installed)
+        self._staged = dict(store._installed)
+        self._finished = False
+
+    def stage(self, entry: LockEntry) -> None:
+        if self._finished:
+            raise PackageError("paket işlemi tamamlandı")
+        self._staged[entry.name] = entry
+
+    def commit(self) -> None:
+        if self._finished:
+            raise PackageError("paket işlemi tamamlandı")
+        self._store._installed = dict(self._staged)
+        self._finished = True
+
+    def rollback(self) -> None:
+        if self._finished:
+            raise PackageError("paket işlemi tamamlandı")
+        self._store._installed = dict(self._snapshot)
+        self._finished = True
+
+    def __enter__(self) -> "InstallTransaction":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        if self._finished:
+            return False
+        if exc_type is None:
+            self.commit()
+        else:
+            self.rollback()
+        return False
