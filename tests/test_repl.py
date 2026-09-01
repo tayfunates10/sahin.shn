@@ -28,6 +28,31 @@ def test_repl_rejects_semantic_error_without_committing_history():
     assert repl.history_chars == 0
 
 
+def test_repl_rolls_back_runtime_state_when_evaluation_fails():
+    repl = ReplSession()
+    repl.evaluate('x = 1\n')
+
+    with pytest.raises(Exception):
+        repl.evaluate('x = 2\nyaz 1 / 0\n')
+
+    result = repl.evaluate('yaz x\n')
+    assert result.output == ('1',)
+    assert result.values['x'] == 1
+    assert repl.snippet_count == 2
+
+
+def test_repl_failed_binding_does_not_leak_into_runtime_scope():
+    repl = ReplSession()
+    repl.evaluate('x = 1\n')
+
+    with pytest.raises(Exception):
+        repl.evaluate('geçici <- 7\nyaz 1 / 0\n')
+
+    result = repl.evaluate('geçici = 9\nyaz geçici\n')
+    assert result.output == ('9',)
+    assert result.values['geçici'] == 9
+
+
 def test_repl_capabilities_are_default_deny_and_copied_from_ceiling():
     repl = ReplSession()
     with pytest.raises(CapabilityError, match='SHN-G001'):
