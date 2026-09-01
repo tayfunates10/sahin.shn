@@ -162,3 +162,30 @@ def test_install_transaction_commits_only_when_successful():
     with store.transaction() as tx:
         tx.stage(new)
     assert store.installed["hesap"] == new
+
+
+def test_stale_rollback_never_erases_newer_committed_install():
+    a = LockEntry("alfa", "1.0.0", "https://kurum.example", content_hash(b"a"))
+    b = LockEntry("beta", "1.0.0", "https://kurum.example", content_hash(b"b"))
+    store = InstallStore()
+    older = store.transaction()
+    newer = store.transaction()
+    newer.stage(b)
+    newer.commit()
+    older.stage(a)
+    older.rollback()
+    assert store.installed == {"beta": b}
+
+
+def test_stale_commit_fails_closed_instead_of_erasing_newer_state():
+    a = LockEntry("alfa", "1.0.0", "https://kurum.example", content_hash(b"a"))
+    b = LockEntry("beta", "1.0.0", "https://kurum.example", content_hash(b"b"))
+    store = InstallStore()
+    older = store.transaction()
+    newer = store.transaction()
+    newer.stage(b)
+    newer.commit()
+    older.stage(a)
+    with pytest.raises(PackageError, match="eşzamanlı işlem"):
+        older.commit()
+    assert store.installed == {"beta": b}
