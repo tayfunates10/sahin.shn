@@ -17,6 +17,12 @@ def test_formatter_is_idempotent_and_has_final_newline() -> None:
     assert twice == once
 
 
+def test_formatter_strips_all_trailing_whitespace() -> None:
+    source = "yaz 1\t\nyaz 2 \t\n"
+
+    assert format_source(source) == "yaz 1\nyaz 2\n"
+
+
 def test_formatter_normalizes_unicode_to_nfc() -> None:
     source = "yaz \"go\u0308ru\u0308nu\u0308m\"\n"
     formatted = format_source(source)
