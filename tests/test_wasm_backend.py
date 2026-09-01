@@ -50,3 +50,56 @@ def test_wasm_plan_rejects_duplicate_temp_definition():
 
     with pytest.raises(WasmBackendError, match="yeniden tanımlanan"):
         build_wasm_plan(program)
+
+
+@pytest.mark.parametrize(
+    "instruction",
+    (
+        IRInstruction("const"),
+        IRInstruction("const", ("tam:1",)),
+        IRInstruction("load", ("isim",)),
+        IRInstruction("unary", ("-",), "%0"),
+        IRInstruction("binary", ("+", "%0"), "%1"),
+        IRInstruction("store", ("x", "%0"), "%1"),
+        IRInstruction("bind", ("x", "%0"), "%1"),
+        IRInstruction("write", (), "%0"),
+    ),
+)
+def test_wasm_plan_rejects_invalid_operand_counts_or_result_shape(instruction):
+    program = IRProgram(version=1, instructions=(instruction,))
+
+    with pytest.raises(WasmBackendError, match="instruction şemasını reddetti"):
+        build_wasm_plan(program)
+
+
+def test_wasm_plan_rejects_write_result_even_when_operand_is_defined():
+    program = IRProgram(
+        version=1,
+        instructions=(
+            IRInstruction("const", ("tam:1",), "%0"),
+            IRInstruction("write", ("%0",), "%1"),
+        ),
+    )
+
+    with pytest.raises(WasmBackendError, match="write.*sonuç üretmemelidir"):
+        build_wasm_plan(program)
+
+
+def test_wasm_plan_rejects_non_temp_value_role_for_store():
+    program = IRProgram(version=1, instructions=(IRInstruction("store", ("x", "tam:1")),))
+
+    with pytest.raises(WasmBackendError, match="geçici değer beklenen operandı"):
+        build_wasm_plan(program)
+
+
+def test_wasm_plan_rejects_temp_in_name_role():
+    program = IRProgram(
+        version=1,
+        instructions=(
+            IRInstruction("const", ("tam:1",), "%0"),
+            IRInstruction("store", ("%0", "%0")),
+        ),
+    )
+
+    with pytest.raises(WasmBackendError, match="isim operandı"):
+        build_wasm_plan(program)
