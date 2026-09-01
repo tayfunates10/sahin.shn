@@ -50,10 +50,10 @@ akış satınAl ürün
 
 ## Durum
 
-**Genel ilerleme: %73**
+**Genel ilerleme: %80**
 
-Tamamlanan son kalite kapısı: **Aşama 7 — Sunucu + API + veri motoru**  
-Sıradaki aşama: **Aşama 8 — Modül + paket ekosistemi**
+Tamamlanan son kalite kapısı: **Aşama 8 — Modül + paket ekosistemi**  
+Sıradaki aşama: **Aşama 9 — Formatter + linter + test runner + LSP + debugger + REPL**
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -69,8 +69,8 @@ Sıradaki aşama: **Aşama 8 — Modül + paket ekosistemi**
 | 5 — Standart kütüphane | %51 | ✅ |
 | 6 — Arayüz + görünüm motoru | %62 | ✅ |
 | 7 — Sunucu + API + veri motoru | %73 | ✅ |
-| 8 — Modül + paket ekosistemi | %80 | 🚧 Sıradaki |
-| 9 — Formatter + linter + test runner + LSP + debugger | %87 | ⏳ |
+| 8 — Modül + paket ekosistemi | %80 | ✅ |
+| 9 — Formatter + linter + test runner + LSP + debugger | %87 | 🚧 Sıradaki |
 | 10 — Şahin IR + WASM/native backend + performans | %94 | ⏳ |
 | 11 — Self-hosting | %97 | ⏳ |
 | 12 — Fuzz/security/compatibility ve 1.0 sertifikasyonu | %100 | ⏳ |
@@ -120,6 +120,17 @@ Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-
 - `ModelMeta` / `ModelField` veri metadata modeli ve sıralı `MigrationPlan`
 - fail-closed transaction commit/rollback sözleşmesi
 - veri/ağ capability kontrolleri ve injection/path/query/body/transaction regression testleri
+- Python 3.11 / 3.12 / 3.13 compile + test + gerçek `.shn` smoke CI: yeşil
+
+### Aşama 8
+- immutable paket manifesti ve deterministik canonical manifest/lockfile
+- SHA-256 bütünlük doğrulaması ve registry provenance eşleştirmesi
+- deterministik `X.Y.Z`, `^X.Y.Z`, `~X.Y.Z` sürüm/uyumluluk çözümleme
+- provenance zorunlu `RegistryAdapter` sınırı ve dependency-confusion koruması
+- signer trust/revocation ile fail-closed paket imza doğrulaması
+- her okumada yeniden doğrulanan offline cache
+- revision tabanlı optimistic concurrency ve atomic install transaction rollback
+- bütünlük, provenance, signature, revocation, stale commit/rollback ve path traversal regression/security testleri
 - Python 3.11 / 3.12 / 3.13 compile + test + gerçek `.shn` smoke CI: yeşil
 
 ## Kalite ve geliştirme akışı
