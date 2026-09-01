@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from sahin.ast_nodes import IfStatement, Literal, Program, Write
+from sahin.ast_nodes import ExpressionStatement, IfStatement, Literal, Name, Program, Write
 from sahin.ir import IRLoweringError, lower_program, lower_source
 
 
@@ -44,4 +44,16 @@ def test_ir_v1_fails_closed_for_ast_nodes_not_yet_supported():
     )
 
     with pytest.raises(IRLoweringError, match="IfStatement"):
+        lower_program(program)
+
+
+def test_ir_v1_fails_closed_for_short_circuit_boolean_lowering():
+    with pytest.raises(IRLoweringError, match="kısa devreli 've/veya'"):
+        lower_source("sonuç = evet veya (1 / 0 == 1)\n")
+
+
+def test_ir_v1_rejects_unvalidated_expression_statement():
+    program = Program(statements=(ExpressionStatement(Name("bilinmeyen")),))
+
+    with pytest.raises(IRLoweringError, match="ExpressionStatement"):
         lower_program(program)
