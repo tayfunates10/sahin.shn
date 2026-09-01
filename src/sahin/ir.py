@@ -85,8 +85,9 @@ class _Lowerer:
             self._emit("write", (value,))
             return
         if isinstance(statement, ExpressionStatement):
-            self._expression(statement.expression)
-            return
+            raise IRLoweringError(
+                "Aşama 10 IR v1 ExpressionStatement düğümünü semantik analiz açıkça doğrulayana kadar desteklemiyor."
+            )
         raise IRLoweringError(
             f"Aşama 10 IR v1 henüz {type(statement).__name__} düğümünü desteklemiyor."
         )
@@ -106,6 +107,10 @@ class _Lowerer:
             self._emit("unary", (expression.operator, operand), result)
             return result
         if isinstance(expression, Binary):
+            if expression.operator in {"ve", "veya"}:
+                raise IRLoweringError(
+                    "Aşama 10 IR v1 kısa devreli 've/veya' işlemlerini kontrol akışı/lazy RHS modeli eklenene kadar desteklemiyor."
+                )
             left = self._expression(expression.left)
             right = self._expression(expression.right)
             result = self._temp()
