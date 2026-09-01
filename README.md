@@ -50,10 +50,10 @@ akış satınAl ürün
 
 ## Durum
 
-**Genel ilerleme: %80**
+**Genel ilerleme: %87**
 
-Tamamlanan son kalite kapısı: **Aşama 8 — Modül + paket ekosistemi**  
-Sıradaki aşama: **Aşama 9 — Formatter + linter + test runner + LSP + debugger + REPL**
+Tamamlanan son kalite kapısı: **Aşama 9 — Araç zinciri**  
+Sıradaki aşama: **Aşama 10 — Şahin IR + WASM/native backend + performans**
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -70,8 +70,8 @@ Sıradaki aşama: **Aşama 9 — Formatter + linter + test runner + LSP + debugg
 | 6 — Arayüz + görünüm motoru | %62 | ✅ |
 | 7 — Sunucu + API + veri motoru | %73 | ✅ |
 | 8 — Modül + paket ekosistemi | %80 | ✅ |
-| 9 — Formatter + linter + test runner + LSP + debugger | %87 | 🚧 Sıradaki |
-| 10 — Şahin IR + WASM/native backend + performans | %94 | ⏳ |
+| 9 — Formatter + linter + test runner + LSP + debugger + REPL | %87 | ✅ |
+| 10 — Şahin IR + WASM/native backend + performans | %94 | 🚧 Sıradaki |
 | 11 — Self-hosting | %97 | ⏳ |
 | 12 — Fuzz/security/compatibility ve 1.0 sertifikasyonu | %100 | ⏳ |
 
@@ -131,6 +131,16 @@ Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-
 - her okumada yeniden doğrulanan offline cache
 - revision tabanlı optimistic concurrency ve atomic install transaction rollback
 - bütünlük, provenance, signature, revocation, stale commit/rollback ve path traversal regression/security testleri
+- Python 3.11 / 3.12 / 3.13 compile + test + gerçek `.shn` smoke CI: yeşil
+
+### Aşama 9
+- deterministik ve idempotent canonical formatter
+- Şahin semantic zincirini yeniden kullanan kaynak konumlu linter
+- deterministik test keşfi ve başarısızlıkları gizlemeyen native test runner
+- diagnostics/completion/hover/go-to-definition/symbol sağlayan semantic-backed LSP çekirdeği
+- runtime state'ini değiştirmeyen breakpoint/step/frame-scope debugger çekirdeği
+- varsayılan-kapalı capability, kaynak limitleri ve atomik rollback sözleşmeli REPL
+- REPL runtime hata rollback, immutable binding sızıntısı, Unicode ve araç zinciri regression testleri
 - Python 3.11 / 3.12 / 3.13 compile + test + gerçek `.shn` smoke CI: yeşil
 
 ## Kalite ve geliştirme akışı
