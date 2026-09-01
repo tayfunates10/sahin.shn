@@ -4,7 +4,7 @@ Bu belge Şahin'in %100 tamamlanma yolunu ve kalite kapılarını tanımlar. Bir
 
 ## İlerleme modeli
 
-Toplam ilerleme: **%62**
+Toplam ilerleme: **%73**
 
 | Aşama | Ağırlık | Durum | Kabul kapısı |
 |---|---:|---|---|
@@ -15,8 +15,8 @@ Toplam ilerleme: **%62**
 | 4. Tip sistemi + güvenlik | %10 | ✅ Tamamlandı | `TypeSpec`, `yok` güvenliği, capability |
 | 5. Standart kütüphane | %9 | ✅ Tamamlandı | metin/sayı/koleksiyon/zaman/json/dosya/ağ/kripto |
 | 6. Arayüz + görünüm motoru | %11 | ✅ Tamamlandı | UI ağacı, stil, olaylar, erişilebilirlik, browser hedefi |
-| 7. Sunucu + API + veri motoru | %11 | 🚧 Sıradaki | HTTP, uç, migration, sorgu, transaction |
-| 8. Modül + paket ekosistemi | %7 | ⏳ | manifest, lockfile, registry, imza |
+| 7. Sunucu + API + veri motoru | %11 | ✅ Tamamlandı | HTTP, uç, migration, sorgu, transaction |
+| 8. Modül + paket ekosistemi | %7 | 🚧 Sıradaki | manifest, lockfile, registry, imza |
 | 9. Araç zinciri | %7 | ⏳ | formatter, linter, test runner, LSP, debugger, REPL |
 | 10. WASM/native + performans | %7 | ⏳ | Şahin IR, WASM/native, benchmark |
 | 11. Self-hosting | %3 | ⏳ | kritik derleyici bölümlerinin Şahin ile derlenmesi |
@@ -108,6 +108,28 @@ Hedef ilerleme: **%51 → %62**
 
 Render modeli DOM veya HTML etiketi taşımayan `Dugum`/`RenderIR` yapısına dayanır. Düğümler immutable'dır, kimlikler NFC normalize edilir ve ağaç genelinde yinelenen kimlikler reddedilir. Etkileşimli `eylem` düğümleri erişilebilir etiket ve focus semantiği taşır. Kullanıcı metni host adapterına aktarılırken varsayılan olarak kaçırılır; ham içerik açık izin olmadan oluşturulamaz. Görünüm modeli selector/CSS sözdizimi yerine Şahin'e özgü ölçü, tasarım tokenı ve responsive eşik değerleri kullanır. UI state sürümlü ve immutable'dır; state işlemleri yalnızca açıkça izin verilmiş alanları değiştirebilir. Browser adapter sözleşmesi HTML metni üretmez, host ağacını yapılandırılmış veri olarak taşır ve kullanıcı metnini executable markup olarak yorumlamaz. Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke kalite kapısı yeşil geçti.
 
+## Aşama 7 — Sunucu + API + veri motoru ✅
+
+Hedef ilerleme: **%62 → %73**
+
+- [x] Host-independent HTTP istek/yanıt modeli
+- [x] `uç` tanımı ve route çözümleme
+- [x] Yöntem, yol parametresi, sorgu ve gövde doğrulama
+- [x] Yapılandırılmış Türkçe hata/yanıt sözleşmesi
+- [x] `ModelMeta` / `ModelField` veri metadata modeli
+- [x] Sıralı, benzersiz sürümlü `MigrationPlan` / `MigrationStep`
+- [x] SQL metni üretmeyen `QueryIR`
+- [x] Yapılandırılmış parametre taşıyan `BackendQuery` adapter sınırı
+- [x] Fail-closed transaction başlat/commit/rollback sözleşmesi
+- [x] Veri/ağ capability kontrolleri
+- [x] Deterministik adapter ve olumlu/olumsuz/security/regression testleri
+- [x] Injection, path/query/body ve transaction failure regression testleri
+- [x] Python 3.11/3.12/3.13 compile + test + `.shn` smoke CI tamamen yeşil
+
+### Aşama 7 doğrulama kaydı
+
+HTTP ve veri IR host-independent tutuldu; Şahin kullanıcısına doğrudan framework route API'si veya SQL string'i yazdırılmıyor. Sorgu değerleri string birleştirme yerine yapılandırılmış parametreler olarak backend adapter sınırına taşınıyor. Transaction hataları fail-closed rollback ile sonuçlanıyor ve dış dünya veri/ağ işlemleri capability kontrolünden önce yürütülmüyor. PR #18 ve PR #19 ile kabul kriterleri tamamlandı; PR #19 kalite kapısında Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke tamamen yeşil geçti.
+
 ## Sonraki kapı
 
-**Aşama 7 — Sunucu + API + veri motoru** için HTTP/uç modeli, migration, sorgu ve transaction çekirdeği geliştirilecektir. Hedef ilerleme **%62 → %73**.
+**Aşama 8 — Modül + paket ekosistemi** için manifest, deterministik lockfile, bağımlılık çözümleme, registry/provenance ve paket imzası/revocation güvenlik modeli geliştirilecektir. Hedef ilerleme **%73 → %80**.
