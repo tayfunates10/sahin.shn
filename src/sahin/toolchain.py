@@ -22,7 +22,9 @@ def format_source(source: str) -> str:
     # Girinti kurallarını formatter'ın sessizce değiştirmesine izin verme.
     Lexer(normalized).tokenize()
 
-    lines = [line.rstrip(" ") for line in normalized.split("\n")]
+    # Yalnızca satır sonundaki whitespace'i kanonikleştir; baştaki girinti
+    # dil semantiğinin parçası olduğundan aynen korunur.
+    lines = [line.rstrip() for line in normalized.split("\n")]
     output: list[str] = []
     previous_blank = False
 
