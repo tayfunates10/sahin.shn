@@ -18,7 +18,7 @@ Toplam ilerleme: **%87**
 | 7. Sunucu + API + veri motoru | %11 | ✅ Tamamlandı | HTTP, uç, migration, sorgu, transaction |
 | 8. Modül + paket ekosistemi | %7 | ✅ Tamamlandı | manifest, lockfile, registry, imza |
 | 9. Araç zinciri | %7 | ✅ Tamamlandı | formatter, linter, test runner, LSP, debugger, REPL |
-| 10. WASM/native + performans | %7 | 🚧 Sıradaki | Şahin IR, WASM/native, benchmark |
+| 10. WASM/native + performans | %7 | 🚧 Devam ediyor | Şahin IR, WASM/native, benchmark |
 | 11. Self-hosting | %3 | ⏳ | kritik derleyici bölümlerinin Şahin ile derlenmesi |
 | 12. 1.0 sertifikasyonu | %3 | ⏳ | fuzz/security/compat/performance/release |
 
@@ -75,6 +75,22 @@ Hedef ilerleme: **%80 → %87**
 
 Formatter, linter, native test runner, LSP, debugger ve REPL parçaları ayrı PR'larla tamamlandı. Son REPL kalite turunda runtime sırasında state değiştirdikten sonra hata veren bir snippet'in session state'ini sessizce kirletebildiği P1 kusuru bulundu; global frame snapshot/rollback ile kök neden düzeltildi ve iki regression testi eklendi. Düzeltmenin exact head'i Python 3.11, 3.12 ve 3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke adımlarıyla yeşil doğrulandı. PR #32 squash-merge edilerek Aşama 9 kalite kapısı kapatıldı; Issue #25 tamamlandı.
 
+## Açık kalite kapısı
+
+### Aşama 10 — Şahin IR + WASM/native backend + performans 🚧
+Hedef ilerleme: **%87 → %94**
+
+- [ ] Şahin'e özgü, sürümlü ve deterministik IR sözleşmesi tamamen kapsanmış
+- [ ] Tüm gerekli AST/semantic düğümleri fail-closed lowering ile desteklenmiş
+- [ ] WASM backend adapter sınırı ve eşdeğerlik testleri
+- [ ] Native backend adapter sınırı ve eşdeğerlik testleri
+- [ ] Capability/güvenlik sınırlarının backendlerde korunduğu doğrulanmış
+- [ ] Tekrarlanabilir benchmark baseline'ı ve performans raporu
+- [ ] Property/security/regression test paketi
+- [ ] Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke tamamen yeşil
+
+İlk geliştirme dilimi `feat/stage10-ir-core` dalında başlatıldı: semantik doğrulamadan sonra çalışan immutable `IRProgram`/`IRInstruction` modeli, kanonik serileştirme, deterministik geçici değer adlandırma, literal/name/unary/binary ifadeleri ile assignment/binding/write lowering'i ve desteklenmeyen düğümlerde sessiz fallback yerine fail-closed hata eklendi. Bu dilim CI ile doğrulanmadan hiçbir Aşama 10 kriteri tamamlandı işaretlenmez ve genel ilerleme **%87** olarak kalır.
+
 ## Sonraki kapı
 
-**Aşama 10 — Şahin IR + WASM/native backend + performans** artık açık geliştirme aşamasıdır (Issue #33). Hedef ilerleme **%87 → %94**. Bu aşama; Şahin'e özgü deterministik IR, WASM/native adapter sınırları, referans runtime ile semantik eşdeğerlik, capability/güvenlik korunumu ve tekrarlanabilir benchmark baseline'ı tamamlanmadan bitmiş sayılmayacaktır.
+Aşama 10 Issue #33 altında devam ediyor. **%94** yalnızca IR kapsamı, WASM/native backend eşdeğerliği, güvenlik/capability korunumu, benchmark ve tüm CI kalite kapıları tamamlandığında gösterilecektir.
