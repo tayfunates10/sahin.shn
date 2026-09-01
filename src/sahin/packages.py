@@ -285,10 +285,11 @@ class PackageCache:
 
 
 class InstallStore:
-    """Atomic in-memory install state with explicit rollback semantics."""
+    """Atomic in-memory install state with optimistic transaction versioning."""
 
     def __init__(self, installed: Mapping[str, LockEntry] | None = None) -> None:
         self._installed = dict(installed or {})
+        self._revision = 0
 
     @property
     def installed(self) -> Mapping[str, LockEntry]:
@@ -301,7 +302,7 @@ class InstallStore:
 class InstallTransaction:
     def __init__(self, store: InstallStore) -> None:
         self._store = store
-        self._snapshot = dict(store._installed)
+        self._base_revision = store._revision
         self._staged = dict(store._installed)
         self._finished = False
 
@@ -313,13 +314,18 @@ class InstallTransaction:
     def commit(self) -> None:
         if self._finished:
             raise PackageError("paket işlemi tamamlandı")
+        if self._store._revision != self._base_revision:
+            self._finished = True
+            raise PackageError("paket kurulum durumu eşzamanlı işlem nedeniyle değişti")
         self._store._installed = dict(self._staged)
+        self._store._revision += 1
         self._finished = True
 
     def rollback(self) -> None:
         if self._finished:
             raise PackageError("paket işlemi tamamlandı")
-        self._store._installed = dict(self._snapshot)
+        # Staging is transaction-local, so rollback must never rewrite shared
+        # store state or erase a newer transaction's committed install.
         self._finished = True
 
     def __enter__(self) -> "InstallTransaction":
