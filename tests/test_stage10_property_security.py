@@ -37,6 +37,7 @@ def test_stage10_ir_property_same_source_has_same_canonical_form(source):
         IRProgram(version=1, instructions=(IRInstruction("const", (), "%0"),)),
         IRProgram(version=1, instructions=(IRInstruction("const", ("tam:1",), "sonuç"),)),
         IRProgram(version=1, instructions=(IRInstruction("write", ("%0",)),)),
+        IRProgram(version=1, instructions=(IRInstruction("load", ("missing",), "%0"),)),
         IRProgram(
             version=1,
             instructions=(
@@ -63,6 +64,21 @@ def test_stage10_ir_property_same_source_has_same_canonical_form(source):
 def test_stage10_backends_fail_closed_for_malformed_or_unsafe_ir(build, error_type, program):
     with pytest.raises(error_type):
         build(program)
+
+
+@pytest.mark.parametrize("build,error_type", BACKENDS)
+def test_stage10_defined_name_can_be_loaded_after_store(build, error_type):
+    program = IRProgram(
+        version=1,
+        instructions=(
+            IRInstruction("const", ("tam:1",), "%0"),
+            IRInstruction("store", ("değer", "%0")),
+            IRInstruction("load", ("değer",), "%1"),
+            IRInstruction("write", ("%1",)),
+        ),
+    )
+
+    assert build(program).instructions == program.instructions
 
 
 @pytest.mark.parametrize("build,error_type", BACKENDS)
