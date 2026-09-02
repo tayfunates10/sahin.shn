@@ -12,7 +12,8 @@ class WasmBackendError(ValueError):
     """Şahin IR güvenli WASM adapter sözleşmesine çevrilemediğinde oluşur."""
 
 
-_ALLOWED_OPCODES = frozenset({"const", "load", "unary", "binary", "store", "bind", "write", "label", "jump", "branch"})
+_ALLOWED_OPCODES = frozenset({"const", "load", "unary", "binary", "predicate", "store", "bind", "write", "label", "jump", "branch"})
+_ALLOWED_PREDICATES = frozenset({"yok", "boş", "boş_değil"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +86,13 @@ def _validate_instruction_schema(
         _validate_non_temp_operand(instruction, operands[0], instruction_index, "operatör", allow_percent_operator=True)
         _validate_temp_operand(operands[1], defined, instruction_index, require_defined=require_defined)
         _validate_temp_operand(operands[2], defined, instruction_index, require_defined=require_defined)
+        return
+    if opcode == "predicate":
+        if len(operands) != 2 or result is None:
+            _schema_error(instruction, instruction_index, "predicate yüklem + 1 geçici operand ve sonuç üretmelidir")
+        if operands[0] not in _ALLOWED_PREDICATES:
+            _schema_error(instruction, instruction_index, f"bilinmeyen yüklem: {operands[0]}")
+        _validate_temp_operand(operands[1], defined, instruction_index, require_defined=require_defined)
         return
     if opcode in {"store", "bind"}:
         if len(operands) != 2 or result is not None:
@@ -162,8 +170,6 @@ def build_wasm_plan(program: IRProgram) -> WasmAdapterPlan:
     if program.version != 1:
         raise WasmBackendError(f"Desteklenmeyen Şahin IR sürümü: {program.version}")
 
-    # Önce backend'in opcode/şema/temp-biçim sözleşmesini koru; fakat veri-akışı
-    # tanımlılığını metin sırasına bağlama. Dominance/definite-definition CFG kapısına aittir.
     structural_results: set[str] = set()
     for index, instruction in enumerate(program.instructions):
         _validate_instruction(instruction, structural_results, index, require_defined=False)

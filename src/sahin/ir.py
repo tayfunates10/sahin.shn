@@ -13,6 +13,7 @@ from .ast_nodes import (
     IfStatement,
     Literal,
     Name,
+    Predicate,
     Program,
     Unary,
     Write,
@@ -213,6 +214,13 @@ class _Lowerer:
             right = self._expression(expression.right)
             result = self._temp()
             self._emit("binary", (expression.operator, left, right), result)
+            return result
+        if isinstance(expression, Predicate):
+            operand = self._expression(expression.expression)
+            if expression.predicate not in {"yok", "boş", "boş_değil"}:
+                raise IRLoweringError(f"Bilinmeyen Şahin yüklemi IR'a indirgenemedi: {expression.predicate!r}")
+            result = self._temp()
+            self._emit("predicate", (expression.predicate, operand), result)
             return result
         raise IRLoweringError(
             f"Aşama 10 IR v1 henüz {type(expression).__name__} ifadesini desteklemiyor."

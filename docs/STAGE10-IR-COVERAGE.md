@@ -11,7 +11,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `Unary` | ✅ | `unary` |
 | `Binary` (kısa devre dışı) | ✅ | `binary` |
 | `Binary` (`ve` / `veya`) | ✅ | Lazy RHS `branch/label/jump`, internal join alanı ve control-flow equivalence exact-head CI ile doğrulandı |
-| `Predicate` | ⏳ | Henüz lowering sözleşmesi yok |
+| `Predicate` | 🚧 | `yok` / `boş` / `boş_değil` için açık `predicate` opcode, backend fail-closed şeması ve equivalence testleri bu PR'da; exact-head CI bekleniyor |
 | `Member` | ⏳ | Henüz lowering sözleşmesi yok |
 | `Call` | ⏳ | Çağrı/ABI sözleşmesi henüz IR v1'e taşınmadı |
 | `RangeExpression` | ⏳ | Henüz lowering sözleşmesi yok |
@@ -49,7 +49,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 3. ✅ `IfStatement` semantiğini deterministik control-flow olarak indir ve exact-head CI ile doğrula.
 4. ✅ Kısa devreli `ve` / `veya` semantiğini eager RHS üretmeden indir ve exact-head CI ile doğrula.
 5. ✅ Referans runtime ↔ WASM/native plan semantik eşdeğerliğini control-flow kaynaklarıyla genişlet.
-6. 🚧 Kalan ifade ve statement düğümlerini küçük, ayrı PR'larla ekle; capability gerektiren düğümleri açık ABI olmadan destekleme.
+6. 🚧 Kalan ifade ve statement düğümlerini küçük, ayrı PR'larla ekle; ilk alt dilim `Predicate`. Capability gerektiren düğümleri açık ABI olmadan destekleme.
 7. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
 
 ## Kalite ilkeleri

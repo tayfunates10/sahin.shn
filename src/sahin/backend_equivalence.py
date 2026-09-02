@@ -74,6 +74,10 @@ def _format(value: object) -> str:
     return str(value)
 
 
+def _empty(value: object) -> bool:
+    return value is None or value == "" or value == [] or value == {} or value == ()
+
+
 def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
     temps: dict[str, object] = {}
     values: dict[str, object] = {}
@@ -169,6 +173,19 @@ def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
             temps[result] = operation()
             pc += 1
             continue
+        if opcode == "predicate" and result is not None:
+            predicate, operand_name = operands
+            value = temp(operand_name)
+            if predicate == "yok":
+                temps[result] = value is None
+            elif predicate == "boş":
+                temps[result] = _empty(value)
+            elif predicate == "boş_değil":
+                temps[result] = not _empty(value)
+            else:
+                raise BackendEquivalenceError(f"Bilinmeyen IR yüklemi: {predicate}")
+            pc += 1
+            continue
         if opcode == "bind":
             name, value_name = operands
             if name in values:
@@ -190,9 +207,7 @@ def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
             continue
         raise BackendEquivalenceError(f"Desteklenmeyen IR opcode'u: {opcode}")
 
-    visible_state = tuple(
-        sorted((name, value) for name, value in values.items() if not name.startswith("$internal_"))
-    )
+    visible_state = tuple(sorted((name, value) for name, value in values.items() if not name.startswith("$internal_")))
     return BackendObservation(state=visible_state, output=tuple(output))
 
 
@@ -203,10 +218,7 @@ def compare_source(source: str) -> EquivalenceReport:
     reference_output: list[str] = []
     reference_runtime = Runtime(reference_output.append)
     reference_state = reference_runtime.execute(parse(tokenize(source)))
-    reference = BackendObservation(
-        state=tuple(sorted(reference_state.items())),
-        output=tuple(reference_output),
-    )
+    reference = BackendObservation(state=tuple(sorted(reference_state.items())), output=tuple(reference_output))
 
     wasm_plan = build_wasm_plan(program)
     native_plan = build_native_plan(program)
