@@ -154,6 +154,36 @@ class _Lowerer:
             f"Aşama 10 IR v1 henüz {type(statement).__name__} düğümünü desteklemiyor."
         )
 
+    def _short_circuit(self, expression: Binary) -> str:
+        left = self._expression(expression.left)
+        rhs_label, short_label, end_label = self._labels("logic", "rhs", "short", "end")
+        result_name = f"{end_label}_result"
+
+        if expression.operator == "ve":
+            self._emit("branch", (left, rhs_label, short_label))
+            short_literal = False
+        elif expression.operator == "veya":
+            self._emit("branch", (left, short_label, rhs_label))
+            short_literal = True
+        else:
+            raise IRLoweringError(f"Desteklenmeyen kısa devre operatörü: {expression.operator!r}")
+
+        self._emit("label", (rhs_label,))
+        right = self._expression(expression.right)
+        self._emit("store", (result_name, right))
+        self._emit("jump", (end_label,))
+
+        self._emit("label", (short_label,))
+        short_value = self._temp()
+        self._emit("const", (self._literal(short_literal),), short_value)
+        self._emit("store", (result_name, short_value))
+        self._emit("jump", (end_label,))
+
+        self._emit("label", (end_label,))
+        result = self._temp()
+        self._emit("load", (result_name,), result)
+        return result
+
     def _expression(self, expression: Expression) -> str:
         if isinstance(expression, Literal):
             result = self._temp()
@@ -175,9 +205,7 @@ class _Lowerer:
             return result
         if isinstance(expression, Binary):
             if expression.operator in {"ve", "veya"}:
-                raise IRLoweringError(
-                    "Aşama 10 IR v1 kısa devreli 've/veya' işlemlerini kontrol akışı/lazy RHS modeli eklenene kadar desteklemiyor."
-                )
+                return self._short_circuit(expression)
             left = self._expression(expression.left)
             right = self._expression(expression.right)
             result = self._temp()
