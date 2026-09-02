@@ -126,11 +126,9 @@ def build_wasm_plan(program: IRProgram) -> WasmAdapterPlan:
     """IR v1'i capability importu açmadan deterministik WASM adapter planına çevirir."""
     if program.version != 1:
         raise WasmBackendError(f"Desteklenmeyen Şahin IR sürümü: {program.version}")
-    try:
-        validate_control_flow(program)
-    except IRControlFlowError as exc:
-        raise WasmBackendError(f"WASM adapter control-flow sözleşmesini reddetti: {exc}") from exc
 
+    # Adapter'ın mevcut opcode/şema/temp hata sözleşmesini önce koru.
+    # Control-flow analizi bunun üstüne eklenen daha güçlü, yol-duyarlı güvenlik kapısıdır.
     defined: set[str] = set()
     defined_names: set[str] = set()
     for index, instruction in enumerate(program.instructions):
@@ -141,6 +139,11 @@ def build_wasm_plan(program: IRProgram) -> WasmAdapterPlan:
                 raise WasmBackendError(f"WASM adapter tanımsız isim yüklemesini reddetti: {name} (instruction {index}).")
         if instruction.opcode in {"store", "bind"}:
             defined_names.add(instruction.operands[0])
+
+    try:
+        validate_control_flow(program)
+    except IRControlFlowError as exc:
+        raise WasmBackendError(f"WASM adapter control-flow sözleşmesini reddetti: {exc}") from exc
 
     return WasmAdapterPlan(ir_version=program.version, adapter_version=1, imports=(), instructions=program.instructions)
 
