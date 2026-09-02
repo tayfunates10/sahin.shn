@@ -12,8 +12,8 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `Binary` (kısa devre dışı) | ✅ | `binary` |
 | `Binary` (`ve` / `veya`) | ✅ | Lazy RHS `branch/label/jump`, internal join alanı ve control-flow equivalence exact-head CI ile doğrulandı |
 | `Predicate` | ✅ | `yok` / `boş` / `boş_değil` açık `predicate` opcode'u, backend fail-closed şeması ve equivalence testleriyle main üzerinde doğrulandı |
-| `Member` | 🚧 | Açık `member` opcode'u, target-temp definite-definition, WASM/native fail-closed şeması ve equivalence regression testleri bu PR'da; exact-head CI bekleniyor |
-| `Call` | ⏳ | Çağrı/ABI sözleşmesi henüz IR v1'e taşınmadı |
+| `Member` | ✅ | Açık `member` opcode'u, target-temp definite-definition, WASM/native fail-closed şeması ve equivalence regression testleri exact-head CI ile doğrulandı |
+| `Call` | 🚧 | Çağrı lowering'i, `akış` declaration/ABI ve dönüş modeli birlikte tanımlanmadan açılmayacak; fail-closed regression sözleşmesi aktif |
 | `RangeExpression` | ⏳ | Henüz lowering sözleşmesi yok |
 | `Pipeline` | ⏳ | Pipeline semantiği henüz IR v1'e taşınmadı |
 
@@ -27,7 +27,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `ExpressionStatement` | ⏳ | Semantik geçerliliği açıkça modellenene kadar fail-closed |
 | `FieldDeclaration` | ⏳ | Henüz lowering sözleşmesi yok |
 | `Command` | ⏳ | Host/capability etkileri açık ABI olmadan açılmamalı |
-| `Declaration` | ⏳ | Fonksiyon/declaration ABI ve scope modeli eksik |
+| `Declaration` | 🚧 | `Call` ile aynı ABI diliminde; `akış` lexical closure/parametre/dönüş sözleşmesi tanımlanmadan desteklenmiyor |
 | `IfStatement` | ✅ | Deterministik `branch/label/jump`, lexical scope ve control-flow equivalence doğrulandı |
 | `ForEach` | ⏳ | Iteration/control-flow modeli eksik |
 | `MatchStatement` | ⏳ | Pattern/control-flow modeli eksik |
@@ -49,7 +49,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 3. ✅ `IfStatement` semantiğini deterministik control-flow olarak indir ve exact-head CI ile doğrula.
 4. ✅ Kısa devreli `ve` / `veya` semantiğini eager RHS üretmeden indir ve exact-head CI ile doğrula.
 5. ✅ Referans runtime ↔ WASM/native plan semantik eşdeğerliğini control-flow kaynaklarıyla genişlet.
-6. 🚧 Kalan ifade ve statement düğümlerini küçük, ayrı PR'larla ekle; `Predicate` tamamlandı, sıradaki aktif alt dilim `Member`. Capability gerektiren düğümleri açık ABI olmadan destekleme.
+6. 🚧 Kalan ifade ve statement düğümlerini küçük, ayrı PR'larla ekle; `Predicate` ve `Member` tamamlandı. Aktif alt dilim `Call` + `akış` `Declaration` ABI'dır. Capability gerektiren düğümleri açık ABI olmadan destekleme.
 7. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
 
 ## Kalite ilkeleri
@@ -58,4 +58,5 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 - Kısa devre semantiği eager RHS ile taklit edilmez.
 - WASM/native adapter capability yüzeyi varsayılan-kapalı kalır.
 - Unknown opcode/version, malformed instruction, use-before-definition ve duplicate-temp fail-closed kalır.
+- `Call` desteği, `akış` declaration/lexical closure/parametre/dönüş ABI'sı doğrulanmadan etkinleştirilmez.
 - Benchmark veya performans hedefi semantik eşdeğerlik kontrolünü devre dışı bırakamaz.
