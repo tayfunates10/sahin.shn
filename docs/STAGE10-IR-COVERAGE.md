@@ -28,7 +28,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `FieldDeclaration` | ⏳ | Henüz lowering sözleşmesi yok |
 | `Command` | ⏳ | Host/capability etkileri açık ABI olmadan açılmamalı |
 | `Declaration` | ⏳ | Fonksiyon/declaration ABI ve scope modeli eksik |
-| `IfStatement` | ⏳ | Control-flow lowering ve backend yürütme entegrasyonu eksik |
+| `IfStatement` | 🚧 | Deterministik `branch/label/jump` lowering eklendi; exact-head CI doğrulaması bekleniyor |
 | `ForEach` | ⏳ | Iteration/control-flow modeli eksik |
 | `MatchStatement` | ⏳ | Pattern/control-flow modeli eksik |
 | `TryStatement` | ⏳ | Error/exception control-flow modeli eksik |
@@ -37,17 +37,19 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 
 - ✅ IR v1 için `label`, `jump`, `branch` primitive sözleşmesi tanımlandı.
 - ✅ Yinelenen/geçersiz label, tanımsız hedef ve tanımsız branch temp kullanımı fail-closed doğrulanıyor.
-- ⏳ WASM/native adapter entegrasyonu ve gerçek `IfStatement` lowering henüz tamamlanmadı.
+- ✅ WASM/native adapter entegrasyonu `main` üzerinde doğrulandı.
+- 🚧 Gerçek `IfStatement` lowering bu PR'da uygulanıyor; CI yeşil olmadan tamamlanmış sayılmaz.
 - ⏳ Kısa devreli `ve` / `veya` için lazy RHS control-flow lowering henüz tamamlanmadı.
 
 ## Kalan kabul sırası
 
 1. ✅ Control-flow IR primitives ve label/jump doğrulama sözleşmesini tanımla.
-2. WASM/native adapter doğrulamasını yeni control-flow opcode'ları için fail-closed genişlet.
-3. `IfStatement` ile kısa devreli `ve` / `veya` semantiğini eager RHS üretmeden indirgeme.
-4. Referans runtime ↔ WASM/native plan semantik eşdeğerliğini control-flow kaynaklarıyla genişlet.
-5. Kalan ifade ve statement düğümlerini küçük, ayrı PR'larla ekle; capability gerektiren düğümleri açık ABI olmadan destekleme.
-6. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
+2. ✅ WASM/native adapter doğrulamasını yeni control-flow opcode'ları için fail-closed genişlet.
+3. 🚧 `IfStatement` semantiğini deterministik control-flow olarak indir ve exact-head CI ile doğrula.
+4. Kısa devreli `ve` / `veya` semantiğini eager RHS üretmeden indirgeme.
+5. Referans runtime ↔ WASM/native plan semantik eşdeğerliğini control-flow kaynaklarıyla genişlet.
+6. Kalan ifade ve statement düğümlerini küçük, ayrı PR'larla ekle; capability gerektiren düğümleri açık ABI olmadan destekleme.
+7. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
 
 ## Kalite ilkeleri
 
