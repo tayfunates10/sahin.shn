@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 import platform
 import statistics
 import time
 from collections.abc import Callable, Iterable
 
-from .backend_equivalence import compare_source
+from .backend_equivalence import BackendObservation, _execute, compare_source
+from .ir import lower_source
+from .native_backend import build_native_plan
+from .wasm_backend import build_wasm_plan
 
 
 class BackendBenchmarkError(ValueError):
@@ -37,10 +41,17 @@ class BenchmarkCase:
         if not self.source or not self.source.strip():
             raise BackendBenchmarkError("benchmark kaynağı boş olamaz")
 
+    @property
+    def workload_sha256(self) -> str:
+        return hashlib.sha256(self.source.encode("utf-8")).hexdigest()
+
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkResult:
     name: str
+    workload_sha256: str
+    backend: str
+    operation: str
     iterations: int
     median_ns: int
     min_ns: int
@@ -72,6 +83,9 @@ class BenchmarkReport:
             "results": [
                 {
                     "name": result.name,
+                    "workload_sha256": result.workload_sha256,
+                    "backend": result.backend,
+                    "operation": result.operation,
                     "iterations": result.iterations,
                     "median_ns": result.median_ns,
                     "min_ns": result.min_ns,
@@ -100,40 +114,79 @@ DEFAULT_CASES: tuple[BenchmarkCase, ...] = (
 )
 
 
-def _measure(operation: Callable[[], object], config: BenchmarkConfig) -> tuple[int, ...]:
+def _measure(
+    operation: Callable[[], BackendObservation],
+    validate: Callable[[BackendObservation], None],
+    config: BenchmarkConfig,
+) -> tuple[int, ...]:
     for _ in range(config.warmups):
-        operation()
+        observation = operation()
+        validate(observation)
 
     samples: list[int] = []
     for _ in range(config.iterations):
         started = time.perf_counter_ns()
-        operation()
+        observation = operation()
         elapsed = time.perf_counter_ns() - started
         if elapsed < 0:
             raise BackendBenchmarkError("monotonic benchmark saati negatif süre üretti")
+        # Doğruluk karşılaştırması zaman penceresinin dışında tutulur. Böylece
+        # oracle maliyeti backend süresine karışmaz, ancak her örnek doğrulanır.
+        validate(observation)
         samples.append(elapsed)
     return tuple(samples)
 
 
-def benchmark_case(case: BenchmarkCase, config: BenchmarkConfig | None = None) -> BenchmarkResult:
-    active_config = config or BenchmarkConfig()
-
-    # Benchmark performans uğruna doğruluğu atlayamaz: her ölçüm tam equivalence
-    # zincirini çalıştırır ve eşdeğer olmayan sonuçta fail-closed davranır.
-    def operation() -> object:
-        report = compare_source(case.source)
-        if not report.equivalent:
-            raise BackendBenchmarkError(f"Semantik eşdeğerlik bozuldu: {case.name}")
-        return report
-
-    samples = _measure(operation, active_config)
+def _result(
+    case: BenchmarkCase,
+    backend: str,
+    samples: tuple[int, ...],
+    config: BenchmarkConfig,
+) -> BenchmarkResult:
     return BenchmarkResult(
         name=case.name,
-        iterations=active_config.iterations,
+        workload_sha256=case.workload_sha256,
+        backend=backend,
+        operation="adapter-plan+execute",
+        iterations=config.iterations,
         median_ns=int(statistics.median(samples)),
         min_ns=min(samples),
         max_ns=max(samples),
         samples_ns=samples,
+    )
+
+
+def benchmark_case(
+    case: BenchmarkCase,
+    config: BenchmarkConfig | None = None,
+) -> tuple[BenchmarkResult, BenchmarkResult]:
+    active_config = config or BenchmarkConfig()
+
+    # Referans ve lowering hazırlığı ölçüm penceresinin dışındadır. Equivalence
+    # oracle yine zorunludur ve eşdeğer olmayan kaynak fail-closed reddedilir.
+    equivalence = compare_source(case.source)
+    if not equivalence.equivalent:
+        raise BackendBenchmarkError(f"Semantik eşdeğerlik bozuldu: {case.name}")
+    expected = equivalence.reference
+    program = lower_source(case.source)
+
+    def validate(observation: BackendObservation) -> None:
+        if observation != expected:
+            raise BackendBenchmarkError(f"Semantik eşdeğerlik bozuldu: {case.name}")
+
+    def wasm_operation() -> BackendObservation:
+        plan = build_wasm_plan(program)
+        return _execute(plan.instructions)
+
+    def native_operation() -> BackendObservation:
+        plan = build_native_plan(program)
+        return _execute(plan.instructions)
+
+    wasm_samples = _measure(wasm_operation, validate, active_config)
+    native_samples = _measure(native_operation, validate, active_config)
+    return (
+        _result(case, "wasm", wasm_samples, active_config),
+        _result(case, "native", native_samples, active_config),
     )
 
 
@@ -150,11 +203,15 @@ def run_baseline(
     if len(names) != len(set(names)):
         raise BackendBenchmarkError("benchmark adları benzersiz olmalıdır")
 
+    results: list[BenchmarkResult] = []
+    for case in frozen_cases:
+        results.extend(benchmark_case(case, active_config))
+
     return BenchmarkReport(
-        schema_version=1,
+        schema_version=2,
         python=platform.python_version(),
         implementation=platform.python_implementation(),
         machine=platform.machine() or "unknown",
         config=active_config,
-        results=tuple(benchmark_case(case, active_config) for case in frozen_cases),
+        results=tuple(results),
     )
