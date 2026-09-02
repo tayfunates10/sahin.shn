@@ -14,8 +14,8 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `Predicate` | ✅ | `yok` / `boş` / `boş_değil` açık `predicate` opcode'u, backend fail-closed şeması ve equivalence testleriyle main üzerinde doğrulandı |
 | `Member` | ✅ | Açık `member` opcode'u, target-temp definite-definition, WASM/native fail-closed şeması ve equivalence regression testleri exact-head CI ile doğrulandı |
 | `Call` | ✅ | Doğrudan adlandırılmış `akış` için `call` opcode'u; hedef/arity doğrulaması, bağımsız çağrı frame'i, lexical capture ve dönüş semantiği WASM/native + equivalence CI ile doğrulandı |
-| `RangeExpression` | 🚧 | Explicit `range` lowering main üzerinde mevcut; WASM/native şema + CFG/use-def doğrulaması ve inclusive ileri/geri equivalence aktif PR'da, exact-head CI bekliyor |
-| `Pipeline` | ⏳ | Pipeline semantiği henüz IR v1'e taşınmadı |
+| `RangeExpression` | ✅ | Explicit `range` opcode'u; WASM/native şema + CFG/use-def doğrulaması ve inclusive ileri/geri equivalence exact-head CI ile doğrulandı |
+| `Pipeline` | 🚧 | Aktif alt dilim; stage zinciri, argüman değerlendirme sırası ve backend/equivalence sözleşmesi tamamlanana kadar lowering fail-closed kalır |
 
 ## Doğrulanmış statement kapsamı
 
@@ -43,6 +43,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 - ✅ Kısa devreli `ve` / `veya` lazy RHS control-flow lowering ve kullanıcı ad alanından ayrılmış internal join slotları doğrulandı.
 - ✅ `IRFlow` + `call` + `return` ABI; flow adı/parametre/type/capture şeması, call target/arity ve flow-body definite-definition kontrolleriyle fail-closed doğrulandı.
 - ✅ Referans runtime ↔ WASM/native plan equivalence yürütücüsü bağımsız çağrı frame'i, parametre aktarımı, dönüş değeri ve lexical capture okuma/yazma semantiğini doğruluyor.
+- ✅ `RangeExpression` için inclusive ileri/geri tuple semantiği iki adapter planıyla eşdeğerlik testlerinden geçti.
 - ✅ Adapter entegrasyonu herhangi bir yeni capability/import açmıyor.
 
 ## Kalan kabul sırası
@@ -53,8 +54,9 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 4. ✅ Kısa devreli `ve` / `veya` semantiğini eager RHS üretmeden indir ve exact-head CI ile doğrula.
 5. ✅ Referans runtime ↔ WASM/native plan semantik eşdeğerliğini control-flow kaynaklarıyla genişlet.
 6. ✅ `Predicate`, `Member`, `Call` + `akış` `Declaration` ABI ve backend/equivalence entegrasyonlarını tamamla.
-7. 🚧 `RangeExpression` lowering'i mevcut; backend/equivalence kalite kapısını tamamla, ardından kalan ifade ve statement düğümlerini küçük ayrı PR'larla ekle.
-8. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
+7. ✅ `RangeExpression` lowering + backend/equivalence kalite kapısını tamamla.
+8. 🚧 `Pipeline` ile başlayarak kalan ifade ve statement düğümlerini küçük ayrı PR'larla ekle; capability gerektiren düğümleri açık ABI olmadan destekleme.
+9. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
 
 ## Kalite ilkeleri
 
