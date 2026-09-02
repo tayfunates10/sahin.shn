@@ -80,19 +80,19 @@ Formatter, linter, native test runner, LSP, debugger ve REPL parçaları ayrı P
 ### Aşama 10 — Şahin IR + WASM/native backend + performans 🚧
 Hedef ilerleme: **%87 → %94**
 
-- [ ] Şahin'e özgü, sürümlü ve deterministik IR sözleşmesi tamamen kapsanmış
+- [ ] Şahin'e özgü, sürümlü ve deterministik IR sözleşmesi tüm gerekli AST/semantic kapsamına genişletilmiş
 - [ ] Tüm gerekli AST/semantic düğümleri fail-closed lowering ile desteklenmiş
 - [x] WASM backend adapter sınırı ve mevcut IR v1 kapsamı için eşdeğerlik testleri
 - [x] Native backend adapter sınırı ve mevcut IR v1 kapsamı için eşdeğerlik testleri
 - [x] Mevcut adapter planlarında capability/güvenlik sınırlarının fail-closed korunduğu doğrulanmış
-- [ ] Tekrarlanabilir benchmark baseline'ı ve performans raporu
-- [ ] Property/security/regression test paketi tamamlanmış
-- [ ] Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke ile Aşama 10 final kapısı tamamen yeşil
+- [x] Tekrarlanabilir benchmark baseline'ı ve sürümlü performans raporu
+- [x] Property/security/regression test paketi mevcut IR v1 ve adapter sınırları için tamamlanmış
+- [ ] Tam IR/semantic lowering kapsamı sonrası Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke ile Aşama 10 final kapısı tamamen yeşil
 
-Doğrulanmış geliştirme dilimleri: deterministik Şahin IR çekirdeği, fail-closed WASM adapter sınırı, fail-closed native adapter sınırı ve referans runtime ↔ WASM/native plan semantik eşdeğerlik oracle'ı ayrı PR'larla `main`e alındı. PR #38'in exact-head CI'ı Python 3.11/3.12/3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke adımlarında yeşil tamamlandı.
+Doğrulanmış geliştirme dilimleri: deterministik Şahin IR çekirdeği, fail-closed WASM adapter sınırı, fail-closed native adapter sınırı, referans runtime ↔ WASM/native plan semantik eşdeğerlik oracle'ı, tekrarlanabilir benchmark baseline'ı ve property/security regression paketi ayrı PR'larla `main`e alındı. PR #40'ın exact-head CI'ı Python 3.11/3.12/3.13 üzerinde compile, tüm testler ve gerçek `.shn` smoke adımlarında yeşil tamamlandı.
 
-Aktif geliştirme dilimi `feat/stage10-benchmark-baseline`: sabit corpus, sürümlü rapor şeması, monotonic nanosecond örnekleri, warmup/iteration sınırları ve her ölçümde semantik eşdeğerliği yeniden doğrulayan benchmark harness'i ekleniyor. Bu dilim CI ile doğrulanıp merge edilmeden benchmark kriteri tamamlandı sayılmaz; genel ilerleme **%87** kalır.
+Aktif geliştirme odağı tam IR/semantic lowering kapsamıdır. Mevcut IR v1 güvenli biçimde `Assignment`, `Binding`, `Write`, literal/name/unary ve kısa devre dışı binary ifadeleri destekler; `IfStatement`, kısa devreli `ve/veya`, `Predicate`, `Member`, `Call`, `RangeExpression`, `Pipeline` ve diğer statement düğümleri açık IR/control-flow/ABI sözleşmeleri tamamlanana kadar fail-closed kalır. Ayrıntılı envanter `docs/STAGE10-IR-COVERAGE.md` belgesindedir.
 
 ## Sonraki kapı
 
-Aşama 10 Issue #33 altında devam ediyor. **%94** yalnızca tam IR/semantic lowering kapsamı, backend güvenliği, tekrarlanabilir benchmark + performans raporu, property/security/regression paketi ve tüm CI kalite kapıları tamamlandığında gösterilecektir.
+Aşama 10 Issue #33 altında devam ediyor. Sıradaki teknik dilim control-flow IR primitives + `IfStatement` + kısa devreli `ve/veya` loweringidir. **%94** yalnızca tam IR/semantic lowering kapsamı, backend güvenliği ve tüm final CI kalite kapıları tamamlandığında gösterilecektir.

@@ -143,8 +143,19 @@ def build_native_plan(program: IRProgram, *, target: str = "native-sahin-safe") 
         raise NativeBackendError(f"Desteklenmeyen native hedefi: {target}")
 
     defined: set[str] = set()
+    defined_names: set[str] = set()
     for index, instruction in enumerate(program.instructions):
         _validate_instruction(instruction, defined, index)
+
+        if instruction.opcode == "load":
+            name = instruction.operands[0]
+            if name not in defined_names:
+                raise NativeBackendError(
+                    f"Native adapter tanımsız isim yüklemesini reddetti: {name} (instruction {index})."
+                )
+
+        if instruction.opcode in {"store", "bind"}:
+            defined_names.add(instruction.operands[0])
 
     return NativeAdapterPlan(
         ir_version=program.version,

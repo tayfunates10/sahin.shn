@@ -144,8 +144,19 @@ def build_wasm_plan(program: IRProgram) -> WasmAdapterPlan:
         raise WasmBackendError(f"Desteklenmeyen Şahin IR sürümü: {program.version}")
 
     defined: set[str] = set()
+    defined_names: set[str] = set()
     for index, instruction in enumerate(program.instructions):
         _validate_instruction(instruction, defined, index)
+
+        if instruction.opcode == "load":
+            name = instruction.operands[0]
+            if name not in defined_names:
+                raise WasmBackendError(
+                    f"WASM adapter tanımsız isim yüklemesini reddetti: {name} (instruction {index})."
+                )
+
+        if instruction.opcode in {"store", "bind"}:
+            defined_names.add(instruction.operands[0])
 
     # Aşama 10'un bu diliminde host capability importları bilinçli olarak kapalıdır.
     # Dosya/ağ/süreç gibi yetkiler açık bir ABI ve capability politikası gelene kadar
