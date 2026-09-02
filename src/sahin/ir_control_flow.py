@@ -10,7 +10,7 @@ class IRControlFlowError(ValueError):
 
 
 CONTROL_FLOW_OPCODES = frozenset({"label", "jump", "branch"})
-NON_CONTROL_FLOW_OPCODES = frozenset({"const", "load", "unary", "binary", "predicate", "store", "bind", "write"})
+NON_CONTROL_FLOW_OPCODES = frozenset({"const", "load", "unary", "binary", "predicate", "member", "store", "bind", "write"})
 KNOWN_OPCODES = CONTROL_FLOW_OPCODES | NON_CONTROL_FLOW_OPCODES
 
 
@@ -28,7 +28,7 @@ def _validate_label_name(name: str, instruction_index: int) -> None:
 
 
 def _temp_uses(instruction: IRInstruction) -> tuple[str, ...]:
-    if instruction.opcode in {"unary", "predicate"}:
+    if instruction.opcode in {"unary", "predicate", "member"}:
         return instruction.operands[1:2]
     if instruction.opcode == "binary":
         return instruction.operands[1:3]
