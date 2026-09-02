@@ -14,7 +14,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `Predicate` | ✅ | `yok` / `boş` / `boş_değil` açık `predicate` opcode'u, backend fail-closed şeması ve equivalence testleriyle main üzerinde doğrulandı |
 | `Member` | ✅ | Açık `member` opcode'u, target-temp definite-definition, WASM/native fail-closed şeması ve equivalence regression testleri exact-head CI ile doğrulandı |
 | `Call` | ✅ | Doğrudan adlandırılmış `akış` için `call` opcode'u; hedef/arity doğrulaması, bağımsız çağrı frame'i, lexical capture ve dönüş semantiği WASM/native + equivalence CI ile doğrulandı |
-| `RangeExpression` | 🚧 | Sıradaki aktif lowering dilimi; tam sayı uçları ve inclusive yön/step semantiği explicit IR sözleşmesi bekliyor |
+| `RangeExpression` | 🚧 | Explicit `range` lowering main üzerinde mevcut; WASM/native şema + CFG/use-def doğrulaması ve inclusive ileri/geri equivalence aktif PR'da, exact-head CI bekliyor |
 | `Pipeline` | ⏳ | Pipeline semantiği henüz IR v1'e taşınmadı |
 
 ## Doğrulanmış statement kapsamı
@@ -53,7 +53,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 4. ✅ Kısa devreli `ve` / `veya` semantiğini eager RHS üretmeden indir ve exact-head CI ile doğrula.
 5. ✅ Referans runtime ↔ WASM/native plan semantik eşdeğerliğini control-flow kaynaklarıyla genişlet.
 6. ✅ `Predicate`, `Member`, `Call` + `akış` `Declaration` ABI ve backend/equivalence entegrasyonlarını tamamla.
-7. 🚧 `RangeExpression` ile başlayarak kalan ifade ve statement düğümlerini küçük, ayrı PR'larla ekle; capability gerektiren düğümleri açık ABI olmadan destekleme.
+7. 🚧 `RangeExpression` lowering'i mevcut; backend/equivalence kalite kapısını tamamla, ardından kalan ifade ve statement düğümlerini küçük ayrı PR'larla ekle.
 8. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
 
 ## Kalite ilkeleri
