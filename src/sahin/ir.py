@@ -10,6 +10,7 @@ from .ast_nodes import (
     Binding,
     Expression,
     ExpressionStatement,
+    IfStatement,
     Literal,
     Name,
     Program,
@@ -57,6 +58,9 @@ class _Lowerer:
     def __init__(self) -> None:
         self.instructions: list[IRInstruction] = []
         self._next_temp = 0
+        self._next_label = 0
+        self._next_scope = 0
+        self._scopes: list[tuple[int | None, dict[str, str]]] = [(None, {})]
 
     def lower(self, program: Program) -> IRProgram:
         for statement in program.statements:
@@ -68,21 +72,79 @@ class _Lowerer:
         self._next_temp += 1
         return name
 
+    def _labels(self, stem: str, *roles: str) -> tuple[str, ...]:
+        sequence = self._next_label
+        self._next_label += 1
+        return tuple(f"__shn_{stem}_{sequence}_{role}" for role in roles)
+
+    def _push_scope(self) -> None:
+        scope_id = self._next_scope
+        self._next_scope += 1
+        self._scopes.append((scope_id, {}))
+
+    def _pop_scope(self) -> None:
+        if len(self._scopes) == 1:
+            raise IRLoweringError("IR lexical scope yığını global kapsamın altına inemez.")
+        self._scopes.pop()
+
+    def _declare_name(self, name: str) -> str:
+        scope_id, names = self._scopes[-1]
+        if name in names:
+            return names[name]
+        physical = name if scope_id is None else f"__shn_scope_{scope_id}_{name}"
+        names[name] = physical
+        return physical
+
+    def _resolve_name(self, name: str) -> str | None:
+        for _, names in reversed(self._scopes):
+            if name in names:
+                return names[name]
+        return None
+
     def _emit(self, opcode: str, operands: tuple[str, ...] = (), result: str | None = None) -> None:
         self.instructions.append(IRInstruction(opcode, operands, result))
 
     def _statement(self, statement) -> None:
         if isinstance(statement, Assignment):
             value = self._expression(statement.expression)
-            self._emit("store", (statement.name, value))
+            target = self._resolve_name(statement.name)
+            if target is None:
+                target = self._declare_name(statement.name)
+            self._emit("store", (target, value))
             return
         if isinstance(statement, Binding):
             value = self._expression(statement.source)
-            self._emit("bind", (statement.name, value))
+            target = self._declare_name(statement.name)
+            self._emit("bind", (target, value))
             return
         if isinstance(statement, Write):
             value = self._expression(statement.expression)
             self._emit("write", (value,))
+            return
+        if isinstance(statement, IfStatement):
+            condition = self._expression(statement.condition)
+            true_label, false_label, end_label = self._labels("if", "true", "false", "end")
+            self._emit("branch", (condition, true_label, false_label))
+
+            self._emit("label", (true_label,))
+            self._push_scope()
+            try:
+                for child in statement.body:
+                    self._statement(child)
+            finally:
+                self._pop_scope()
+            self._emit("jump", (end_label,))
+
+            self._emit("label", (false_label,))
+            self._push_scope()
+            try:
+                for child in statement.else_body:
+                    self._statement(child)
+            finally:
+                self._pop_scope()
+            self._emit("jump", (end_label,))
+
+            self._emit("label", (end_label,))
             return
         if isinstance(statement, ExpressionStatement):
             raise IRLoweringError(
@@ -98,8 +160,13 @@ class _Lowerer:
             self._emit("const", (self._literal(expression.value),), result)
             return result
         if isinstance(expression, Name):
+            physical = self._resolve_name(expression.value)
+            if physical is None:
+                raise IRLoweringError(
+                    f"Semantik doğrulama sonrası çözülemeyen isim: {expression.value!r}."
+                )
             result = self._temp()
-            self._emit("load", (expression.value,), result)
+            self._emit("load", (physical,), result)
             return result
         if isinstance(expression, Unary):
             operand = self._expression(expression.operand)
