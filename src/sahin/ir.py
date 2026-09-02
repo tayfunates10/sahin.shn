@@ -10,6 +10,7 @@ from .ast_nodes import (
     Binding,
     Expression,
     ExpressionStatement,
+    IfStatement,
     Literal,
     Name,
     Program,
@@ -57,6 +58,7 @@ class _Lowerer:
     def __init__(self) -> None:
         self.instructions: list[IRInstruction] = []
         self._next_temp = 0
+        self._next_label = 0
 
     def lower(self, program: Program) -> IRProgram:
         for statement in program.statements:
@@ -67,6 +69,11 @@ class _Lowerer:
         name = f"%{self._next_temp}"
         self._next_temp += 1
         return name
+
+    def _labels(self, stem: str, *roles: str) -> tuple[str, ...]:
+        sequence = self._next_label
+        self._next_label += 1
+        return tuple(f"__shn_{stem}_{sequence}_{role}" for role in roles)
 
     def _emit(self, opcode: str, operands: tuple[str, ...] = (), result: str | None = None) -> None:
         self.instructions.append(IRInstruction(opcode, operands, result))
@@ -83,6 +90,23 @@ class _Lowerer:
         if isinstance(statement, Write):
             value = self._expression(statement.expression)
             self._emit("write", (value,))
+            return
+        if isinstance(statement, IfStatement):
+            condition = self._expression(statement.condition)
+            true_label, false_label, end_label = self._labels("if", "true", "false", "end")
+            self._emit("branch", (condition, true_label, false_label))
+
+            self._emit("label", (true_label,))
+            for child in statement.body:
+                self._statement(child)
+            self._emit("jump", (end_label,))
+
+            self._emit("label", (false_label,))
+            for child in statement.else_body:
+                self._statement(child)
+            self._emit("jump", (end_label,))
+
+            self._emit("label", (end_label,))
             return
         if isinstance(statement, ExpressionStatement):
             raise IRLoweringError(
