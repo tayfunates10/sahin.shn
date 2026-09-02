@@ -175,6 +175,10 @@ def build_wasm_plan(program: IRProgram) -> WasmAdapterPlan:
     """IR v1'i capability importu açmadan deterministik WASM adapter planına çevirir."""
     if program.version != 1:
         raise WasmBackendError(f"Desteklenmeyen Şahin IR sürümü: {program.version}")
+    if program.flows:
+        raise WasmBackendError(
+            "WASM adapter `akış`/Call ABI entegrasyonu tamamlanana kadar flow içeren IR programlarını fail-closed reddeder."
+        )
 
     structural_results: set[str] = set()
     for index, instruction in enumerate(program.instructions):

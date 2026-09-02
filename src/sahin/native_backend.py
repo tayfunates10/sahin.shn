@@ -157,6 +157,10 @@ def build_native_plan(program: IRProgram, *, target: str = "native-sahin-safe") 
         raise NativeBackendError(f"Desteklenmeyen Şahin IR sürümü: {program.version}")
     if target != "native-sahin-safe":
         raise NativeBackendError(f"Desteklenmeyen native hedefi: {target}")
+    if program.flows:
+        raise NativeBackendError(
+            "Native adapter `akış`/Call ABI entegrasyonu tamamlanana kadar flow içeren IR programlarını fail-closed reddeder."
+        )
 
     structural_results: set[str] = set()
     for index, instruction in enumerate(program.instructions):
