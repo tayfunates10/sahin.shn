@@ -106,8 +106,11 @@ def test_baseline_rejects_duplicate_case_names():
         run_baseline(cases=cases, config=BenchmarkConfig(warmups=0, iterations=1))
 
 
-def test_benchmark_preserves_fail_closed_ir_boundary():
-    bad = BenchmarkCase("short-circuit", "sonuç = evet veya (1 / 0 == 1)\n")
+def test_benchmark_accepts_verified_short_circuit_control_flow():
+    case = BenchmarkCase("short-circuit", "sonuç = evet veya (1 / 0 == 1)\nyaz sonuç\n")
 
-    with pytest.raises(Exception):
-        run_baseline(cases=(bad,), config=BenchmarkConfig(warmups=0, iterations=1))
+    report = run_baseline(cases=(case,), config=BenchmarkConfig(warmups=0, iterations=1))
+
+    assert [result.name for result in report.results] == ["short-circuit", "short-circuit"]
+    assert [result.backend for result in report.results] == ["wasm", "native"]
+    assert all(result.iterations == 1 for result in report.results)
