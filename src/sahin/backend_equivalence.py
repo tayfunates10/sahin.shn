@@ -237,6 +237,16 @@ def _execute(
                 temps[result] = _member(temp(target_name), member_name)
                 pc += 1
                 continue
+            if opcode == "range" and result is not None:
+                start_name, end_name = operands
+                start = temp(start_name)
+                end = temp(end_name)
+                if not isinstance(start, int) or isinstance(start, bool) or not isinstance(end, int) or isinstance(end, bool):
+                    raise BackendEquivalenceError("IR range uçları tam sayı olmalıdır.")
+                step = 1 if end >= start else -1
+                temps[result] = tuple(range(start, end + step, step))
+                pc += 1
+                continue
             if opcode == "call" and result is not None:
                 flow_name, *argument_names = operands
                 flow = flow_table.get(flow_name)

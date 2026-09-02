@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 
-from .backend_validation import validate_backend_program
 from .ir import IRFlow, IRInstruction, IRProgram, lower_source
+from .range_backend_validation import validate_backend_program_with_range
 
 
 class NativeBackendError(ValueError):
@@ -37,7 +37,7 @@ def build_native_plan(program: IRProgram, *, target: str = "native-sahin-safe") 
     """IR v1'i capability açmadan deterministik native adapter planına çevirir."""
     if target != "native-sahin-safe":
         raise NativeBackendError(f"Desteklenmeyen native hedefi: {target}")
-    validate_backend_program(
+    validate_backend_program_with_range(
         program,
         error_type=NativeBackendError,
         backend_name="Native",
