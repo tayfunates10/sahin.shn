@@ -55,7 +55,7 @@ akış satınAl ürün
 Tamamlanan son kalite kapısı: **Aşama 9 — Araç zinciri**  
 Aktif aşama: **Aşama 10 — Şahin IR + WASM/native backend + performans**
 
-Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları, control-flow primitive'leri, gerçek `IfStatement` lowering + lexical scope korunumu, lazy RHS koruyan kısa devreli `ve/veya` lowering, `Predicate` lowering, control-flow dahil referans runtime ↔ WASM/native plan semantik eşdeğerlik oracle'ı, tekrarlanabilir benchmark baseline'ı ve property/security regression kapıları doğrulandı. Aktif alt dilim `Member` lowering'dir; exact-head CI geçmeden tamamlanmış sayılmaz. Kalan ana iş diğer eksik AST/semantic lowering kapsamıdır; final Python 3.11/3.12/3.13 + gerçek `.shn` smoke kapısı ve tam kapsam matrisi tamamlanmadan ilerleme %94'e çıkarılmaz.
+Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları, control-flow primitive'leri, gerçek `IfStatement` lowering + lexical scope korunumu, lazy RHS koruyan kısa devreli `ve/veya` lowering, `Predicate` ve `Member` lowering, control-flow dahil referans runtime ↔ WASM/native plan semantik eşdeğerlik oracle'ı, tekrarlanabilir benchmark baseline'ı ve property/security regression kapıları doğrulandı. Aktif alt dilim `Call` + `akış` `Declaration` ABI'dır; lexical closure, parametre ve dönüş modeli doğrulanmadan çağrı desteği açılmaz. Kalan ana iş diğer eksik AST/semantic lowering kapsamıdır; final Python 3.11/3.12/3.13 + gerçek `.shn` smoke kapısı ve tam kapsam matrisi tamamlanmadan ilerleme %94'e çıkarılmaz.
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -153,12 +153,13 @@ Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-
 - gerçek `IfStatement` lowering, nested determinism ve lexical scope korunumu
 - lazy RHS koruyan kısa devreli `ve/veya` control-flow lowering ve kullanıcı ad alanından ayrılmış internal join slotları
 - `yok` / `boş` / `boş_değil` için açık `predicate` IR lowering + backend/equivalence doğrulaması
+- `Member` için açık `member` IR lowering, target-temp definite-definition, backend fail-closed şeması ve runtime/backend equivalence doğrulaması
 - control-flow dahil referans runtime ↔ WASM/native plan semantik eşdeğerlik oracle'ı
 - ayrı backend örnek serileri ve workload SHA-256 kimliği kullanan tekrarlanabilir benchmark baseline'ı
 - malformed IR, unknown version/opcode, use-before-definition, duplicate-temp ve capability yüzeyi için property/security regression paketi
 - bu ara kapıların exact-head CI koşuları Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke üzerinde yeşil
 
-Aşama 10 henüz tamamlanmış değildir. `Member` aktif geliştirme dilimidir; `Call`, `RangeExpression`, `Pipeline`, `ForEach`, `MatchStatement`, `TryStatement` ve diğer eksik AST/semantic düğümlerinin doğru control-flow/ABI/capability modeliyle IR'a indirilmesi gerekir.
+Aşama 10 henüz tamamlanmış değildir. Aktif geliştirme dilimi `Call` + `akış` `Declaration` ABI'dır; çağrıların lexical closure, parametre ve dönüş semantiği açıkça modellenmeden destek açılmaz. `RangeExpression`, `Pipeline`, `ForEach`, `MatchStatement`, `TryStatement` ve diğer eksik AST/semantic düğümlerinin doğru control-flow/ABI/capability modeliyle IR'a indirilmesi gerekir.
 
 ## Kalite ve geliştirme akışı
 
