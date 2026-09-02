@@ -130,11 +130,9 @@ def build_native_plan(program: IRProgram, *, target: str = "native-sahin-safe") 
         raise NativeBackendError(f"Desteklenmeyen Şahin IR sürümü: {program.version}")
     if target != "native-sahin-safe":
         raise NativeBackendError(f"Desteklenmeyen native hedefi: {target}")
-    try:
-        validate_control_flow(program)
-    except IRControlFlowError as exc:
-        raise NativeBackendError(f"Native adapter control-flow sözleşmesini reddetti: {exc}") from exc
 
+    # Adapter'ın mevcut opcode/şema/temp hata sözleşmesini önce koru.
+    # Control-flow analizi bunun üstüne eklenen daha güçlü, yol-duyarlı güvenlik kapısıdır.
     defined: set[str] = set()
     defined_names: set[str] = set()
     for index, instruction in enumerate(program.instructions):
@@ -145,6 +143,11 @@ def build_native_plan(program: IRProgram, *, target: str = "native-sahin-safe") 
                 raise NativeBackendError(f"Native adapter tanımsız isim yüklemesini reddetti: {name} (instruction {index}).")
         if instruction.opcode in {"store", "bind"}:
             defined_names.add(instruction.operands[0])
+
+    try:
+        validate_control_flow(program)
+    except IRControlFlowError as exc:
+        raise NativeBackendError(f"Native adapter control-flow sözleşmesini reddetti: {exc}") from exc
 
     return NativeAdapterPlan(ir_version=program.version, adapter_version=1, target=target, capabilities=(), instructions=program.instructions)
 
