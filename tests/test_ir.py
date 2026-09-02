@@ -153,9 +153,32 @@ def test_ir_v1_nested_if_labels_are_unique_and_deterministic():
     validate_control_flow(first)
 
 
-def test_ir_v1_fails_closed_for_short_circuit_boolean_lowering():
-    with pytest.raises(IRLoweringError, match="kısa devreli 've/veya'"):
-        lower_source("sonuç = evet veya (1 / 0 == 1)\n")
+def test_ir_v1_lowers_or_with_lazy_rhs_control_flow():
+    lowered = lower_source("sonuç = evet veya (1 / 0 == 1)\nyaz sonuç\n")
+    opcodes = tuple(item.opcode for item in lowered.instructions)
+
+    assert opcodes[:2] == ("const", "branch")
+    branch = lowered.instructions[1]
+    assert branch.operands[1:] == ("__shn_logic_0_short", "__shn_logic_0_rhs")
+    rhs_label_index = next(
+        index for index, item in enumerate(lowered.instructions)
+        if item.opcode == "label" and item.operands == ("__shn_logic_0_rhs",)
+    )
+    binary_indices = [index for index, item in enumerate(lowered.instructions) if item.opcode == "binary"]
+    assert binary_indices and min(binary_indices) > rhs_label_index
+    validate_control_flow(lowered)
+
+
+def test_ir_v1_lowers_and_with_false_short_circuit_value():
+    lowered = lower_source("sonuç = hayır ve (1 / 0 == 1)\nyaz sonuç\n")
+    branch = next(item for item in lowered.instructions if item.opcode == "branch")
+
+    assert branch.operands[1:] == ("__shn_logic_0_rhs", "__shn_logic_0_short")
+    assert any(
+        item.opcode == "const" and item.operands == ("evet_hayır:hayır",)
+        for item in lowered.instructions
+    )
+    validate_control_flow(lowered)
 
 
 def test_ir_v1_rejects_unvalidated_expression_statement():
