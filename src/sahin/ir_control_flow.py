@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Iterable
 
 from .ir import IRInstruction, IRProgram
 
@@ -9,8 +10,8 @@ class IRControlFlowError(ValueError):
     """Şahin IR control-flow sözleşmesi ihlal edildiğinde oluşur."""
 
 
-CONTROL_FLOW_OPCODES = frozenset({"label", "jump", "branch"})
-NON_CONTROL_FLOW_OPCODES = frozenset({"const", "load", "unary", "binary", "predicate", "member", "store", "bind", "write"})
+CONTROL_FLOW_OPCODES = frozenset({"label", "jump", "branch", "return"})
+NON_CONTROL_FLOW_OPCODES = frozenset({"const", "load", "unary", "binary", "predicate", "member", "call", "store", "bind", "write"})
 KNOWN_OPCODES = CONTROL_FLOW_OPCODES | NON_CONTROL_FLOW_OPCODES
 
 
@@ -32,19 +33,29 @@ def _temp_uses(instruction: IRInstruction) -> tuple[str, ...]:
         return instruction.operands[1:2]
     if instruction.opcode == "binary":
         return instruction.operands[1:3]
+    if instruction.opcode == "call":
+        return instruction.operands[1:]
     if instruction.opcode in {"store", "bind"}:
         return instruction.operands[1:2]
-    if instruction.opcode == "write":
+    if instruction.opcode in {"write", "return"}:
         return instruction.operands[0:1]
     if instruction.opcode == "branch":
         return instruction.operands[0:1]
     return ()
 
 
-def validate_control_flow(program: IRProgram) -> ControlFlowSummary:
+def validate_control_flow(
+    program: IRProgram,
+    *,
+    predefined_names: Iterable[str] = (),
+) -> ControlFlowSummary:
     """IR v1 control-flow ve definite-definition sözleşmesini fail-closed doğrular."""
     if program.version != 1:
         raise IRControlFlowError(f"Desteklenmeyen Şahin IR sürümü: {program.version}")
+
+    entry_names = set(predefined_names)
+    if any(not name or name.startswith("%") for name in entry_names):
+        raise IRControlFlowError("Ön tanımlı IR isimleri boş veya geçici değer biçiminde olamaz.")
 
     labels: list[str] = []
     label_set: set[str] = set()
@@ -100,6 +111,12 @@ def validate_control_flow(program: IRProgram) -> ControlFlowSummary:
             targets.extend((true_target, false_target))
             continue
 
+        if opcode == "return":
+            if len(instruction.operands) != 1 or instruction.result is not None:
+                raise IRControlFlowError(
+                    f"return tam olarak 1 geçici değer almalı ve sonuç üretmemelidir (instruction {index})."
+                )
+
         if instruction.result is not None:
             if not instruction.result.startswith("%"):
                 raise IRControlFlowError(
@@ -127,6 +144,8 @@ def validate_control_flow(program: IRProgram) -> ControlFlowSummary:
             elif instruction.opcode == "branch":
                 successors[index].add(label_indices[instruction.operands[1]])
                 successors[index].add(label_indices[instruction.operands[2]])
+            elif instruction.opcode == "return":
+                pass
             elif index + 1 < instruction_count:
                 successors[index].add(index + 1)
         for source, target_indices in enumerate(successors):
@@ -144,7 +163,7 @@ def validate_control_flow(program: IRProgram) -> ControlFlowSummary:
             for index, instruction in enumerate(program.instructions):
                 if index == 0:
                     incoming_temps: set[str] | None = set()
-                    incoming_names: set[str] | None = set()
+                    incoming_names: set[str] | None = set(entry_names)
                 else:
                     reachable = [pred for pred in predecessors[index] if out_temps[pred] is not None]
                     if not reachable:
