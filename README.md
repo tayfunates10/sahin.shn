@@ -55,7 +55,7 @@ akış satınAl ürün
 Tamamlanan son kalite kapısı: **Aşama 9 — Araç zinciri**  
 Aktif aşama: **Aşama 10 — Şahin IR + WASM/native backend + performans**
 
-Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları ve referans runtime ile backend planları arasındaki semantik eşdeğerlik oracle'ı `main` üzerinde doğrulandı. Tekrarlanabilir benchmark/performance baseline, tam IR kapsamı ve kalan property/security kapıları bitmeden ilerleme %94'e çıkarılmaz.
+Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları, referans runtime ile backend planları arasındaki semantik eşdeğerlik oracle'ı, tekrarlanabilir benchmark baseline'ı ve property/security regression kapıları `main` üzerinde doğrulandı. Kalan ana iş tam IR/semantic lowering kapsamı ve bu kapsamın final Python 3.11/3.12/3.13 + gerçek `.shn` smoke kapısıyla doğrulanmasıdır; bunlar tamamlanmadan ilerleme %94'e çıkarılmaz.
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -77,7 +77,8 @@ Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırl
 | 11 — Self-hosting | %97 | ⏳ |
 | 12 — Fuzz/security/compatibility ve 1.0 sertifikasyonu | %100 | ⏳ |
 
-Ayrıntılı alt aşamalar ve kabul kriterleri: [`docs/ROADMAP.md`](docs/ROADMAP.md)
+Ayrıntılı alt aşamalar ve kabul kriterleri: [`docs/ROADMAP.md`](docs/ROADMAP.md)  
+Aşama 10 IR kapsam envanteri: [`docs/STAGE10-IR-COVERAGE.md`](docs/STAGE10-IR-COVERAGE.md)
 
 ## Doğrulanmış kalite kapıları
 
@@ -145,6 +146,16 @@ Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-
 - REPL runtime hata rollback, immutable binding sızıntısı, Unicode ve araç zinciri regression testleri
 - Python 3.11 / 3.12 / 3.13 compile + test + gerçek `.shn` smoke CI: yeşil
 
+### Aşama 10 — doğrulanmış ara kapılar
+- deterministik ve sürümlü Şahin IR v1 çekirdeği
+- fail-closed WASM/native adapter sınırları
+- referans runtime ↔ WASM/native plan semantik eşdeğerlik oracle'ı
+- ayrı backend örnek serileri ve workload SHA-256 kimliği kullanan tekrarlanabilir benchmark baseline'ı
+- malformed IR, unknown version/opcode, use-before-definition, duplicate-temp ve capability yüzeyi için property/security regression paketi
+- bu ara kapıların exact-head CI koşuları Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke üzerinde yeşil
+
+Aşama 10 henüz tamamlanmış değildir. `IfStatement`, kısa devreli `ve/veya` ve diğer eksik AST/semantic düğümlerinin doğru control-flow/ABI modeliyle IR'a indirilmesi gerekir.
+
 ## Kalite ve geliştirme akışı
 
 1. Her geliştirme ayrı branch + PR ile ilerler.
@@ -161,6 +172,7 @@ Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-
 - `docs/SOZDIZIMI-v0.1.md`
 - `docs/MIMARI.md`
 - `docs/ROADMAP.md`
+- `docs/STAGE10-IR-COVERAGE.md`
 - `docs/STANDART-KUTUPHANE.md`
 
 ## Lisans
