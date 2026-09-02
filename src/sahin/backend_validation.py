@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
 
 from .ir import IRFlow, IRInstruction, IRProgram
 from .ir_control_flow import IRControlFlowError, validate_control_flow
@@ -70,6 +69,14 @@ def validate_backend_program(
             error_type=error_type,
             backend_name=backend_name,
         )
+        _validate_flow_must_return(flow, error_type=error_type, backend_name=backend_name)
+
+    _validate_call_capture_availability(
+        program,
+        flows=flows,
+        error_type=error_type,
+        backend_name=backend_name,
+    )
 
 
 def _schema_error(
@@ -217,6 +224,137 @@ def _validate_instruction_sequence(
             if result in results:
                 raise error_type(f"{backend_name} adapter yeniden tanımlanan geçici sonucu reddetti: {result}")
             results.add(result)
+
+
+def _successors(instructions: tuple[IRInstruction, ...]) -> tuple[list[set[int]], dict[str, int]]:
+    count = len(instructions)
+    labels = {
+        instruction.operands[0]: index
+        for index, instruction in enumerate(instructions)
+        if instruction.opcode == "label" and len(instruction.operands) == 1
+    }
+    successors: list[set[int]] = [set() for _ in range(count)]
+    for index, instruction in enumerate(instructions):
+        if instruction.opcode == "return":
+            continue
+        if instruction.opcode == "jump":
+            successors[index].add(labels[instruction.operands[0]])
+        elif instruction.opcode == "branch":
+            successors[index].add(labels[instruction.operands[1]])
+            successors[index].add(labels[instruction.operands[2]])
+        elif index + 1 < count:
+            successors[index].add(index + 1)
+        else:
+            successors[index].add(count)
+    return successors, labels
+
+
+def _validate_flow_must_return(
+    flow: IRFlow,
+    *,
+    error_type: type[ValueError],
+    backend_name: str,
+) -> None:
+    """Her ulaşılabilir flow çıkışının explicit `return` ile terminal olduğunu kanıtla."""
+    instructions = flow.instructions
+    if not instructions:
+        raise error_type(f"{backend_name} adapter dönüş üretmeden sonlanabilen akışı reddetti: {flow.name}")
+
+    successors, _ = _successors(instructions)
+    end = len(instructions)
+    pending = [0]
+    visited: set[int] = set()
+    while pending:
+        index = pending.pop()
+        if index == end:
+            raise error_type(f"{backend_name} adapter dönüş üretmeden sonlanabilen akışı reddetti: {flow.name}")
+        if index in visited:
+            continue
+        visited.add(index)
+        pending.extend(successors[index])
+
+
+def _definite_names_before(
+    instructions: tuple[IRInstruction, ...],
+    *,
+    predefined_names: tuple[str, ...] = (),
+) -> list[set[str] | None]:
+    """Her instruction girişindeki tüm-yollarda-tanımlı isim kümesini hesaplar."""
+    count = len(instructions)
+    if not count:
+        return []
+
+    successors, _ = _successors(instructions)
+    predecessors: list[set[int]] = [set() for _ in range(count)]
+    for source, targets in enumerate(successors):
+        for target in targets:
+            if target < count:
+                predecessors[target].add(source)
+
+    incoming: list[set[str] | None] = [None] * count
+    outgoing: list[set[str] | None] = [None] * count
+    entry = set(predefined_names)
+    changed = True
+    while changed:
+        changed = False
+        for index, instruction in enumerate(instructions):
+            if index == 0:
+                current_in: set[str] | None = set(entry)
+            else:
+                reachable = [pred for pred in predecessors[index] if outgoing[pred] is not None]
+                if not reachable:
+                    current_in = None
+                else:
+                    current_in = set(outgoing[reachable[0]] or ())
+                    for pred in reachable[1:]:
+                        current_in.intersection_update(outgoing[pred] or ())
+
+            current_out = None if current_in is None else set(current_in)
+            if current_out is not None and instruction.opcode in {"store", "bind"} and instruction.operands:
+                current_out.add(instruction.operands[0])
+
+            if incoming[index] != current_in or outgoing[index] != current_out:
+                incoming[index] = current_in
+                outgoing[index] = current_out
+                changed = True
+    return incoming
+
+
+def _validate_call_capture_availability(
+    program: IRProgram,
+    *,
+    flows: dict[str, IRFlow],
+    error_type: type[ValueError],
+    backend_name: str,
+) -> None:
+    """Top-level çağrı noktasında tüm transitif lexical capture'ların kesin tanımlı olduğunu kanıtla."""
+    required = {name: set(flow.captures) for name, flow in flows.items()}
+    changed = True
+    while changed:
+        changed = False
+        for name, flow in flows.items():
+            expanded = set(required[name])
+            for instruction in flow.instructions:
+                if instruction.opcode == "call" and instruction.operands:
+                    expanded.update(required[instruction.operands[0]])
+            if expanded != required[name]:
+                required[name] = expanded
+                changed = True
+
+    incoming = _definite_names_before(program.instructions)
+    for index, instruction in enumerate(program.instructions):
+        if instruction.opcode != "call" or not instruction.operands:
+            continue
+        names = incoming[index]
+        if names is None:
+            continue
+        target = instruction.operands[0]
+        missing = sorted(required[target] - names)
+        if missing:
+            raise error_type(
+                f"{backend_name} adapter call lexical capture'ları çağrı noktasında tanımlı değil: "
+                f"{target}: {', '.join(missing)} (instruction {index})."
+            )
 
 
 def _validate_cfg(
