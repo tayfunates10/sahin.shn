@@ -157,7 +157,10 @@ class _Lowerer:
     def _short_circuit(self, expression: Binary) -> str:
         left = self._expression(expression.left)
         rhs_label, short_label, end_label = self._labels("logic", "rhs", "short", "end")
-        result_name = f"{end_label}_result"
+        # '$' kaynak dilinde geçerli bir identifier başlangıcı değildir. Böylece join slotu
+        # kullanıcı isim alanıyla çakışamaz; ilerideki equivalence yürütücüsü de bu alanı
+        # açıkça internal state olarak ayırabilir.
+        result_name = f"$internal_{end_label}_result"
 
         if expression.operator == "ve":
             self._emit("branch", (left, rhs_label, short_label))
