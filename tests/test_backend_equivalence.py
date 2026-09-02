@@ -53,7 +53,7 @@ def test_equivalence_is_deterministic_across_repeated_runs():
 
 
 def test_equivalence_does_not_bypass_unimplemented_control_flow_boundary():
-    with pytest.raises(BackendEquivalenceError, match="Desteklenmeyen IR opcode'u: branch"):
+    with pytest.raises(BackendEquivalenceError, match="Control-flow equivalence henüz uygulanmadı"):
         compare_source("sonuç = evet veya (1 / 0 == 1)\n")
 
 
