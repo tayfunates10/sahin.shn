@@ -86,6 +86,52 @@ class IRProgram:
         return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+def _can_fall_through(instructions: list[IRInstruction]) -> bool:
+    """Üretilen akış gövdesinin sanal son noktasına ulaşılabiliyor mu?"""
+    if not instructions:
+        return True
+
+    labels: dict[str, int] = {}
+    for index, instruction in enumerate(instructions):
+        if instruction.opcode == "label" and len(instruction.operands) == 1:
+            label = instruction.operands[0]
+            if label in labels:
+                raise IRLoweringError(f"Yinelenen IR etiketi akış sonu analizini bozuyor: {label!r}.")
+            labels[label] = index
+
+    end = len(instructions)
+    pending = [0]
+    visited: set[int] = set()
+    while pending:
+        index = pending.pop()
+        if index == end:
+            return True
+        if index < 0 or index > end or index in visited:
+            continue
+        visited.add(index)
+        instruction = instructions[index]
+
+        if instruction.opcode == "return":
+            continue
+        if instruction.opcode == "jump":
+            if len(instruction.operands) != 1 or instruction.operands[0] not in labels:
+                raise IRLoweringError("Geçersiz jump hedefi akış sonu analizinde fail-closed reddedildi.")
+            pending.append(labels[instruction.operands[0]])
+            continue
+        if instruction.opcode == "branch":
+            if len(instruction.operands) != 3:
+                raise IRLoweringError("Geçersiz branch şeması akış sonu analizinde fail-closed reddedildi.")
+            for target in instruction.operands[1:]:
+                if target not in labels:
+                    raise IRLoweringError(f"Tanımsız branch hedefi akış sonu analizinde reddedildi: {target!r}.")
+                pending.append(labels[target])
+            continue
+
+        pending.append(index + 1)
+
+    return False
+
+
 class _Lowerer:
     def __init__(
         self,
@@ -188,11 +234,12 @@ class _Lowerer:
                 for statement in declaration.body:
                     child._statement(statement)
 
-            # Runtime gibi blok sonunda örtük `yok` döndür. Açık `return` sonrası bu
-            # instruction unreachable olabilir; control-flow doğrulaması bunu güvenle tolere eder.
-            implicit = child._temp()
-            child._emit("const", (child._literal(None),), implicit)
-            child._emit("return", (implicit,))
+            # Runtime gibi yalnız gerçekten sona düşebilen akışlarda örtük `yok`
+            # döndür. Terminal `ver` sonrasında ulaşılamaz sahte IR üretme.
+            if _can_fall_through(child.instructions):
+                implicit = child._temp()
+                child._emit("const", (child._literal(None),), implicit)
+                child._emit("return", (implicit,))
         finally:
             child._pop_scope()
 
