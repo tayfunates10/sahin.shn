@@ -27,13 +27,22 @@ def _validate_label_name(name: str, instruction_index: int) -> None:
         )
 
 
-def validate_control_flow(program: IRProgram) -> ControlFlowSummary:
-    """IR v1 label/jump/branch yapısını deterministik ve fail-closed doğrular.
+def _temp_uses(instruction: IRInstruction) -> tuple[str, ...]:
+    if instruction.opcode == "unary":
+        return instruction.operands[1:2]
+    if instruction.opcode == "binary":
+        return instruction.operands[1:3]
+    if instruction.opcode in {"store", "bind"}:
+        return instruction.operands[1:2]
+    if instruction.opcode == "write":
+        return instruction.operands[0:1]
+    if instruction.opcode == "branch":
+        return instruction.operands[0:1]
+    return ()
 
-    Bu doğrulayıcı henüz backend lowering yapmaz. Aşama 10'un sonraki dilimlerinde
-    WASM/native adapterlar bu sözleşmeyi tüketir. Böylece bilinmeyen veya bozuk
-    control-flow instruction'ları sessizce kabul edilmez.
-    """
+
+def validate_control_flow(program: IRProgram) -> ControlFlowSummary:
+    """IR v1 control-flow ve definite-definition sözleşmesini fail-closed doğrular."""
     if program.version != 1:
         raise IRControlFlowError(f"Desteklenmeyen Şahin IR sürümü: {program.version}")
 
@@ -42,11 +51,9 @@ def validate_control_flow(program: IRProgram) -> ControlFlowSummary:
     label_indices: dict[str, int] = {}
     targets: list[str] = []
     defined_temps: set[str] = set()
-    temp_definition_index: dict[str, int] = {}
 
     for index, instruction in enumerate(program.instructions):
         opcode = instruction.opcode
-
         if opcode not in KNOWN_OPCODES:
             raise IRControlFlowError(
                 f"Bilinmeyen IR opcode fail-closed reddedildi: {opcode!r} (instruction {index})."
@@ -103,7 +110,6 @@ def validate_control_flow(program: IRProgram) -> ControlFlowSummary:
                     f"Yinelenen geçici sonuç reddedildi: {instruction.result} (instruction {index})."
                 )
             defined_temps.add(instruction.result)
-            temp_definition_index[instruction.result] = index
 
     missing = tuple(target for target in targets if target not in label_set)
     if missing:
@@ -115,7 +121,6 @@ def validate_control_flow(program: IRProgram) -> ControlFlowSummary:
     if instruction_count:
         successors: list[set[int]] = [set() for _ in range(instruction_count)]
         predecessors: list[set[int]] = [set() for _ in range(instruction_count)]
-
         for index, instruction in enumerate(program.instructions):
             if instruction.opcode == "jump":
                 successors[index].add(label_indices[instruction.operands[0]])
@@ -124,49 +129,66 @@ def validate_control_flow(program: IRProgram) -> ControlFlowSummary:
                 successors[index].add(label_indices[instruction.operands[2]])
             elif index + 1 < instruction_count:
                 successors[index].add(index + 1)
-
         for source, target_indices in enumerate(successors):
             for target in target_indices:
                 predecessors[target].add(source)
 
-        in_defs: list[set[str] | None] = [None for _ in range(instruction_count)]
-        out_defs: list[set[str] | None] = [None for _ in range(instruction_count)]
-        in_defs[0] = set()
+        in_temps: list[set[str] | None] = [None] * instruction_count
+        out_temps: list[set[str] | None] = [None] * instruction_count
+        in_names: list[set[str] | None] = [None] * instruction_count
+        out_names: list[set[str] | None] = [None] * instruction_count
 
         changed = True
         while changed:
             changed = False
             for index, instruction in enumerate(program.instructions):
                 if index == 0:
-                    incoming = set()
+                    incoming_temps: set[str] | None = set()
+                    incoming_names: set[str] | None = set()
                 else:
-                    reachable_predecessors = [
-                        out_defs[pred] for pred in predecessors[index] if out_defs[pred] is not None
-                    ]
-                    if not reachable_predecessors:
-                        incoming = None
+                    reachable = [pred for pred in predecessors[index] if out_temps[pred] is not None]
+                    if not reachable:
+                        incoming_temps = None
+                        incoming_names = None
                     else:
-                        incoming = set(reachable_predecessors[0])
-                        for pred_defs in reachable_predecessors[1:]:
-                            incoming.intersection_update(pred_defs)
+                        incoming_temps = set(out_temps[reachable[0]] or ())
+                        incoming_names = set(out_names[reachable[0]] or ())
+                        for pred in reachable[1:]:
+                            incoming_temps.intersection_update(out_temps[pred] or ())
+                            incoming_names.intersection_update(out_names[pred] or ())
 
-                outgoing = None if incoming is None else set(incoming)
-                if outgoing is not None and instruction.result is not None:
-                    outgoing.add(instruction.result)
+                outgoing_temps = None if incoming_temps is None else set(incoming_temps)
+                outgoing_names = None if incoming_names is None else set(incoming_names)
+                if outgoing_temps is not None and instruction.result is not None:
+                    outgoing_temps.add(instruction.result)
+                if outgoing_names is not None and instruction.opcode in {"store", "bind"} and instruction.operands:
+                    outgoing_names.add(instruction.operands[0])
 
-                if in_defs[index] != incoming or out_defs[index] != outgoing:
-                    in_defs[index] = incoming
-                    out_defs[index] = outgoing
+                if (
+                    in_temps[index] != incoming_temps
+                    or out_temps[index] != outgoing_temps
+                    or in_names[index] != incoming_names
+                    or out_names[index] != outgoing_names
+                ):
+                    in_temps[index] = incoming_temps
+                    out_temps[index] = outgoing_temps
+                    in_names[index] = incoming_names
+                    out_names[index] = outgoing_names
                     changed = True
 
         for index, instruction in enumerate(program.instructions):
-            if instruction.opcode != "branch":
-                continue
-            condition = instruction.operands[0]
-            incoming = in_defs[index]
-            if condition not in defined_temps or incoming is None or condition not in incoming:
-                raise IRControlFlowError(
-                    f"branch koşulu tüm ulaşılabilir giriş yollarında tanımlı olmalıdır: {condition} (instruction {index})."
-                )
+            incoming_temps = in_temps[index]
+            for operand in _temp_uses(instruction):
+                if not operand.startswith("%") or incoming_temps is None or operand not in incoming_temps:
+                    raise IRControlFlowError(
+                        f"Geçici değer tüm ulaşılabilir giriş yollarında tanımlı olmalıdır: {operand} (instruction {index})."
+                    )
+            if instruction.opcode == "load" and len(instruction.operands) == 1:
+                incoming_names = in_names[index]
+                name = instruction.operands[0]
+                if incoming_names is None or name not in incoming_names:
+                    raise IRControlFlowError(
+                        f"İsim tüm ulaşılabilir giriş yollarında tanımlı olmalıdır: {name} (instruction {index})."
+                    )
 
     return ControlFlowSummary(labels=tuple(labels), jump_targets=tuple(targets))
