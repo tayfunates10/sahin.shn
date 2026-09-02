@@ -78,6 +78,14 @@ def _empty(value: object) -> bool:
     return value is None or value == "" or value == [] or value == {} or value == ()
 
 
+def _member(target: object, name: str) -> object:
+    if isinstance(target, dict) and name in target:
+        return target[name]
+    if name == "uzunluk" and isinstance(target, (str, tuple, list, dict)):
+        return len(target)
+    raise BackendEquivalenceError(f"{name!r} üyesi bulunamadı.")
+
+
 def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
     temps: dict[str, object] = {}
     values: dict[str, object] = {}
@@ -184,6 +192,11 @@ def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
                 temps[result] = not _empty(value)
             else:
                 raise BackendEquivalenceError(f"Bilinmeyen IR yüklemi: {predicate}")
+            pc += 1
+            continue
+        if opcode == "member" and result is not None:
+            member_name, target_name = operands
+            temps[result] = _member(temp(target_name), member_name)
             pc += 1
             continue
         if opcode == "bind":

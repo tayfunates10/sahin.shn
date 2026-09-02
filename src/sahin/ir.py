@@ -12,6 +12,7 @@ from .ast_nodes import (
     ExpressionStatement,
     IfStatement,
     Literal,
+    Member,
     Name,
     Predicate,
     Program,
@@ -158,9 +159,6 @@ class _Lowerer:
     def _short_circuit(self, expression: Binary) -> str:
         left = self._expression(expression.left)
         rhs_label, short_label, end_label = self._labels("logic", "rhs", "short", "end")
-        # '$' kaynak dilinde geçerli bir identifier başlangıcı değildir. Böylece join slotu
-        # kullanıcı isim alanıyla çakışamaz; ilerideki equivalence yürütücüsü de bu alanı
-        # açıkça internal state olarak ayırabilir.
         result_name = f"$internal_{end_label}_result"
 
         if expression.operator == "ve":
@@ -221,6 +219,13 @@ class _Lowerer:
                 raise IRLoweringError(f"Bilinmeyen Şahin yüklemi IR'a indirgenemedi: {expression.predicate!r}")
             result = self._temp()
             self._emit("predicate", (expression.predicate, operand), result)
+            return result
+        if isinstance(expression, Member):
+            target = self._expression(expression.target)
+            if not expression.name or expression.name.startswith("%"):
+                raise IRLoweringError(f"Geçersiz üye adı IR'a indirgenemedi: {expression.name!r}")
+            result = self._temp()
+            self._emit("member", (expression.name, target), result)
             return result
         raise IRLoweringError(
             f"Aşama 10 IR v1 henüz {type(expression).__name__} ifadesini desteklemiyor."

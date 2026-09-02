@@ -12,7 +12,7 @@ class WasmBackendError(ValueError):
     """Şahin IR güvenli WASM adapter sözleşmesine çevrilemediğinde oluşur."""
 
 
-_ALLOWED_OPCODES = frozenset({"const", "load", "unary", "binary", "predicate", "store", "bind", "write", "label", "jump", "branch"})
+_ALLOWED_OPCODES = frozenset({"const", "load", "unary", "binary", "predicate", "member", "store", "bind", "write", "label", "jump", "branch"})
 _ALLOWED_PREDICATES = frozenset({"yok", "boş", "boş_değil"})
 
 
@@ -92,6 +92,12 @@ def _validate_instruction_schema(
             _schema_error(instruction, instruction_index, "predicate yüklem + 1 geçici operand ve sonuç üretmelidir")
         if operands[0] not in _ALLOWED_PREDICATES:
             _schema_error(instruction, instruction_index, f"bilinmeyen yüklem: {operands[0]}")
+        _validate_temp_operand(operands[1], defined, instruction_index, require_defined=require_defined)
+        return
+    if opcode == "member":
+        if len(operands) != 2 or result is None:
+            _schema_error(instruction, instruction_index, "member üye adı + 1 hedef geçici operand ve sonuç üretmelidir")
+        _validate_non_temp_operand(instruction, operands[0], instruction_index, "üye adı")
         _validate_temp_operand(operands[1], defined, instruction_index, require_defined=require_defined)
         return
     if opcode in {"store", "bind"}:
