@@ -146,14 +146,14 @@ def build_wasm_plan(program: IRProgram) -> WasmAdapterPlan:
     defined: set[str] = set()
     defined_names: set[str] = set()
     for index, instruction in enumerate(program.instructions):
-        if instruction.opcode == "load" and len(instruction.operands) == 1:
+        _validate_instruction(instruction, defined, index)
+
+        if instruction.opcode == "load":
             name = instruction.operands[0]
-            if name and not name.startswith("%") and name not in defined_names:
+            if name not in defined_names:
                 raise WasmBackendError(
                     f"WASM adapter tanımsız isim yüklemesini reddetti: {name} (instruction {index})."
                 )
-
-        _validate_instruction(instruction, defined, index)
 
         if instruction.opcode in {"store", "bind"}:
             defined_names.add(instruction.operands[0])
