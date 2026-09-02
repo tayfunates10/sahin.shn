@@ -8,6 +8,9 @@ from .ast_nodes import (
     Assignment,
     Binary,
     Binding,
+    Call,
+    Command,
+    Declaration,
     Expression,
     ExpressionStatement,
     IfStatement,
@@ -44,30 +47,75 @@ class IRInstruction:
 
 
 @dataclass(frozen=True, slots=True)
+class IRFlow:
+    """Bir Şahin `akış` tanımının bağımsız, çağrı-frame güvenli IR gövdesi."""
+
+    name: str
+    parameters: tuple[str, ...]
+    parameter_types: tuple[str | None, ...]
+    return_type: str | None
+    captures: tuple[str, ...]
+    instructions: tuple[IRInstruction, ...]
+
+    def canonical(self) -> str:
+        payload = {
+            "captures": list(self.captures),
+            "instructions": [json.loads(item.canonical()) for item in self.instructions],
+            "name": self.name,
+            "parameter_types": list(self.parameter_types),
+            "parameters": list(self.parameters),
+            "return_type": self.return_type,
+        }
+        return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+@dataclass(frozen=True, slots=True)
 class IRProgram:
     version: int
     instructions: tuple[IRInstruction, ...]
+    flows: tuple[IRFlow, ...] = ()
 
     def canonical(self) -> str:
         payload = {
             "instructions": [json.loads(item.canonical()) for item in self.instructions],
             "version": self.version,
         }
+        # Mevcut IR v1 canonical sözleşmesini akış içermeyen programlarda byte-byte koru.
+        if self.flows:
+            payload["flows"] = [json.loads(flow.canonical()) for flow in self.flows]
         return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 class _Lowerer:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        flow_names: dict[str, str] | None = None,
+        initial_names: dict[str, str] | None = None,
+        in_flow: bool = False,
+    ) -> None:
         self.instructions: list[IRInstruction] = []
+        self.flows: list[IRFlow] = []
         self._next_temp = 0
         self._next_label = 0
         self._next_scope = 0
-        self._scopes: list[tuple[int | None, dict[str, str]]] = [(None, {})]
+        self._scopes: list[tuple[int | None, dict[str, str]]] = [(None, dict(initial_names or {}))]
+        self._flow_names = dict(flow_names or {})
+        self._in_flow = in_flow
+        self._capture_candidates = set((initial_names or {}).values())
+        self._captures: set[str] = set()
 
     def lower(self, program: Program) -> IRProgram:
+        if not self._in_flow:
+            self._predeclare_flows(program)
         for statement in program.statements:
             self._statement(statement)
-        return IRProgram(version=1, instructions=tuple(self.instructions))
+        return IRProgram(version=1, instructions=tuple(self.instructions), flows=tuple(self.flows))
+
+    def _predeclare_flows(self, program: Program) -> None:
+        for statement in program.statements:
+            if isinstance(statement, Declaration) and statement.kind == "akış" and statement.name:
+                self._flow_names.setdefault(statement.name, f"@akış:{statement.name}")
 
     def _temp(self) -> str:
         name = f"%{self._next_temp}"
@@ -100,13 +148,87 @@ class _Lowerer:
     def _resolve_name(self, name: str) -> str | None:
         for _, names in reversed(self._scopes):
             if name in names:
-                return names[name]
+                physical = names[name]
+                if physical in self._capture_candidates:
+                    self._captures.add(physical)
+                return physical
         return None
+
+    def _visible_names(self) -> dict[str, str]:
+        visible: dict[str, str] = {}
+        for _, names in self._scopes:
+            visible.update(names)
+        return visible
 
     def _emit(self, opcode: str, operands: tuple[str, ...] = (), result: str | None = None) -> None:
         self.instructions.append(IRInstruction(opcode, operands, result))
 
+    def _lower_flow(self, declaration: Declaration) -> None:
+        if not declaration.name:
+            raise IRLoweringError("İsimsiz `akış` tanımı IR ABI'ına indirgenemez.")
+        flow_name = self._flow_names.get(declaration.name)
+        if flow_name is None:
+            raise IRLoweringError(f"Ön tanımı bulunmayan `akış`: {declaration.name!r}.")
+
+        child = _Lowerer(
+            flow_names=self._flow_names,
+            initial_names=self._visible_names(),
+            in_flow=True,
+        )
+        child._push_scope()
+        parameters: list[str] = []
+        try:
+            for parameter in declaration.parameters:
+                parameters.append(child._declare_name(parameter.name))
+
+            if declaration.inline_expression is not None:
+                value = child._expression(declaration.inline_expression)
+                child._emit("return", (value,))
+            else:
+                for statement in declaration.body:
+                    child._statement(statement)
+
+            # Runtime gibi blok sonunda örtük `yok` döndür. Açık `return` sonrası bu
+            # instruction unreachable olabilir; control-flow doğrulaması bunu güvenle tolere eder.
+            implicit = child._temp()
+            child._emit("const", (child._literal(None),), implicit)
+            child._emit("return", (implicit,))
+        finally:
+            child._pop_scope()
+
+        self.flows.append(
+            IRFlow(
+                name=flow_name,
+                parameters=tuple(parameters),
+                parameter_types=tuple(parameter.type_name for parameter in declaration.parameters),
+                return_type=declaration.return_type,
+                captures=tuple(sorted(child._captures)),
+                instructions=tuple(child.instructions),
+            )
+        )
+
     def _statement(self, statement) -> None:
+        if isinstance(statement, Declaration):
+            if statement.kind != "akış":
+                raise IRLoweringError(
+                    f"Aşama 10 IR v1 henüz {statement.kind!r} Declaration ABI'ını desteklemiyor."
+                )
+            if self._in_flow:
+                raise IRLoweringError("İç içe `akış` Declaration ABI'ı henüz fail-closed tutuluyor.")
+            self._lower_flow(statement)
+            return
+        if isinstance(statement, Command):
+            if statement.name == "ver" and self._in_flow:
+                if statement.arguments:
+                    value = self._expression(statement.arguments[0])
+                else:
+                    value = self._temp()
+                    self._emit("const", (self._literal(None),), value)
+                self._emit("return", (value,))
+                return
+            raise IRLoweringError(
+                f"Aşama 10 IR v1 henüz {statement.name!r} Command düğümünü bu kapsamda desteklemiyor."
+            )
         if isinstance(statement, Assignment):
             value = self._expression(statement.expression)
             target = self._resolve_name(statement.name)
@@ -191,7 +313,21 @@ class _Lowerer:
             result = self._temp()
             self._emit("const", (self._literal(expression.value),), result)
             return result
+        if isinstance(expression, Call):
+            if not isinstance(expression.callee, Name):
+                raise IRLoweringError("Call ABI v1 yalnız doğrudan adlandırılmış `akış` çağrılarını destekliyor.")
+            flow_name = self._flow_names.get(expression.callee.value)
+            if flow_name is None:
+                raise IRLoweringError(
+                    f"Call ABI için doğrulanmış `akış` bulunamadı: {expression.callee.value!r}."
+                )
+            arguments = tuple(self._expression(argument) for argument in expression.arguments)
+            result = self._temp()
+            self._emit("call", (flow_name, *arguments), result)
+            return result
         if isinstance(expression, Name):
+            if expression.value in self._flow_names:
+                raise IRLoweringError("`akış` değeri doğrudan taşınamaz; Call ABI v1 yalnız doğrudan çağrıyı destekler.")
             physical = self._resolve_name(expression.value)
             if physical is None:
                 raise IRLoweringError(
