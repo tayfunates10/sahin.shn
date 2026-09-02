@@ -136,7 +136,7 @@ yaz sonuç
     report = compare_source(source)
 
     assert report.equivalent
-    assert report.reference.state == (("sonuç", 3), ("sayaç", 3))
+    assert report.reference.state == (("sayaç", 3), ("sonuç", 3))
     assert report.reference.output == ("3", "3")
 
 
