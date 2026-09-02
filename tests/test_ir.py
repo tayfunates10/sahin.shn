@@ -2,7 +2,16 @@ from decimal import Decimal
 
 import pytest
 
-from sahin.ast_nodes import ExpressionStatement, IfStatement, Literal, Name, Program, Write
+from sahin.ast_nodes import (
+    Assignment,
+    Binding,
+    ExpressionStatement,
+    IfStatement,
+    Literal,
+    Name,
+    Program,
+    Write,
+)
 from sahin.ir import IRLoweringError, lower_program, lower_source
 from sahin.ir_control_flow import validate_control_flow
 
@@ -71,6 +80,55 @@ def test_ir_v1_lowers_if_statement_with_deterministic_control_flow():
         "__shn_if_0_false",
         "__shn_if_0_end",
     )
+
+
+def test_ir_v1_preserves_if_branch_lexical_shadowing():
+    program = Program(
+        statements=(
+            Assignment("x", Literal(Decimal("1"))),
+            IfStatement(
+                condition=Literal(True),
+                body=(
+                    Binding("x", Literal(Decimal("2"))),
+                    Write(Name("x")),
+                ),
+                else_body=(),
+            ),
+            Write(Name("x")),
+        )
+    )
+
+    lowered = lower_program(program)
+    binds = [item for item in lowered.instructions if item.opcode == "bind"]
+    loads = [item for item in lowered.instructions if item.opcode == "load"]
+
+    assert len(binds) == 1
+    assert binds[0].operands[0] == "__shn_scope_0_x"
+    assert loads[0].operands == ("__shn_scope_0_x",)
+    assert loads[-1].operands == ("x",)
+    validate_control_flow(lowered)
+
+
+def test_ir_v1_branch_assignment_to_outer_name_keeps_outer_identity():
+    program = Program(
+        statements=(
+            Assignment("x", Literal(Decimal("1"))),
+            IfStatement(
+                condition=Literal(True),
+                body=(Assignment("x", Literal(Decimal("2"))),),
+                else_body=(),
+            ),
+            Write(Name("x")),
+        )
+    )
+
+    lowered = lower_program(program)
+    stores = [item for item in lowered.instructions if item.opcode == "store"]
+    loads = [item for item in lowered.instructions if item.opcode == "load"]
+
+    assert [item.operands[0] for item in stores] == ["x", "x"]
+    assert loads[-1].operands == ("x",)
+    validate_control_flow(lowered)
 
 
 def test_ir_v1_nested_if_labels_are_unique_and_deterministic():
