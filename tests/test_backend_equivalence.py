@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from sahin.backend_equivalence import BackendEquivalenceError, compare_source
+from sahin.backend_equivalence import compare_source
 
 
 @pytest.mark.parametrize(
@@ -52,9 +52,48 @@ def test_equivalence_is_deterministic_across_repeated_runs():
     assert first.equivalent
 
 
-def test_equivalence_does_not_bypass_unimplemented_control_flow_boundary():
-    with pytest.raises(BackendEquivalenceError, match="Control-flow equivalence henüz uygulanmadı"):
-        compare_source("sonuç = evet veya (1 / 0 == 1)\n")
+@pytest.mark.parametrize(
+    ("source", "expected_state", "expected_output"),
+    (
+        (
+            "sonuç = evet veya (1 / 0 == 1)\nyaz sonuç\n",
+            (("sonuç", True),),
+            ("evet",),
+        ),
+        (
+            "sonuç = hayır ve (1 / 0 == 1)\nyaz sonuç\n",
+            (("sonuç", False),),
+            ("hayır",),
+        ),
+    ),
+)
+def test_control_flow_equivalence_preserves_lazy_short_circuit(source, expected_state, expected_output):
+    report = compare_source(source)
+
+    assert report.equivalent
+    assert report.reference.state == expected_state
+    assert report.reference.output == expected_output
+    assert report.wasm == report.reference
+    assert report.native == report.reference
+
+
+def test_control_flow_equivalence_hides_internal_join_state_and_preserves_user_name():
+    source = (
+        "__shn_logic_0_end_result = hayır\n"
+        "sonuç = evet veya hayır\n"
+        "yaz __shn_logic_0_end_result\n"
+        "yaz sonuç\n"
+    )
+    report = compare_source(source)
+
+    assert report.equivalent
+    assert report.reference.state == (
+        ("__shn_logic_0_end_result", False),
+        ("sonuç", True),
+    )
+    assert report.reference.output == ("hayır", "evet")
+    assert report.wasm == report.reference
+    assert report.native == report.reference
 
 
 def test_reference_runtime_error_is_not_hidden():

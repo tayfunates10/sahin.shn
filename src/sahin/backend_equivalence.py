@@ -79,6 +79,11 @@ def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
     values: dict[str, object] = {}
     bindings: set[str] = set()
     output: list[str] = []
+    labels = {
+        instruction.operands[0]: index
+        for index, instruction in enumerate(instructions)
+        if instruction.opcode == "label" and len(instruction.operands) == 1
+    }
 
     def temp(name: str) -> object:
         try:
@@ -86,19 +91,45 @@ def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
         except KeyError as exc:
             raise BackendEquivalenceError(f"Tanımsız IR geçici değeri: {name}") from exc
 
-    for instruction in instructions:
+    pc = 0
+    steps = 0
+    max_steps = max(1024, len(instructions) * 32)
+    while pc < len(instructions):
+        steps += 1
+        if steps > max_steps:
+            raise BackendEquivalenceError("Control-flow equivalence yürütme adım sınırını aştı.")
+
+        instruction = instructions[pc]
         opcode = instruction.opcode
         operands = instruction.operands
         result = instruction.result
 
+        if opcode == "label":
+            pc += 1
+            continue
+        if opcode == "jump":
+            try:
+                pc = labels[operands[0]]
+            except KeyError as exc:
+                raise BackendEquivalenceError(f"Tanımsız IR jump hedefi: {operands[0]}") from exc
+            continue
+        if opcode == "branch":
+            target = operands[1] if bool(temp(operands[0])) else operands[2]
+            try:
+                pc = labels[target]
+            except KeyError as exc:
+                raise BackendEquivalenceError(f"Tanımsız IR branch hedefi: {target}") from exc
+            continue
         if opcode == "const" and result is not None:
             temps[result] = _decode_literal(operands[0])
+            pc += 1
             continue
         if opcode == "load" and result is not None:
             name = operands[0]
             if name not in values:
                 raise BackendEquivalenceError(f"Tanımsız IR isim yüklemesi: {name}")
             temps[result] = values[name]
+            pc += 1
             continue
         if opcode == "unary" and result is not None:
             operator, operand_name = operands
@@ -113,6 +144,7 @@ def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
             if operation is None:
                 raise BackendEquivalenceError(f"Bilinmeyen IR tekli işlemi: {operator}")
             temps[result] = operation()
+            pc += 1
             continue
         if opcode == "binary" and result is not None:
             operator, left_name, right_name = operands
@@ -135,6 +167,7 @@ def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
             if operation is None:
                 raise BackendEquivalenceError(f"Bilinmeyen IR ikili işlemi: {operator}")
             temps[result] = operation()
+            pc += 1
             continue
         if opcode == "bind":
             name, value_name = operands
@@ -142,32 +175,30 @@ def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
                 raise BackendEquivalenceError(f"IR binding aynı kapsamda yeniden tanımlandı: {name}")
             values[name] = temp(value_name)
             bindings.add(name)
+            pc += 1
             continue
         if opcode == "store":
             name, value_name = operands
             if name in bindings:
                 raise BackendEquivalenceError(f"Bağlı IR değeri '=' ile yeniden atanamaz: {name}")
             values[name] = temp(value_name)
+            pc += 1
             continue
         if opcode == "write":
             output.append(_format(temp(operands[0])))
+            pc += 1
             continue
         raise BackendEquivalenceError(f"Desteklenmeyen IR opcode'u: {opcode}")
 
-    return BackendObservation(state=tuple(sorted(values.items())), output=tuple(output))
+    visible_state = tuple(
+        sorted((name, value) for name, value in values.items() if not name.startswith("$internal_"))
+    )
+    return BackendObservation(state=visible_state, output=tuple(output))
 
 
 def compare_source(source: str) -> EquivalenceReport:
     """IR v1 kapsamındaki kaynakta referans runtime ile iki adapter planını karşılaştırır."""
     program = lower_source(source)
-    control_flow = next(
-        (item.opcode for item in program.instructions if item.opcode in {"branch", "label", "jump"}),
-        None,
-    )
-    if control_flow is not None:
-        raise BackendEquivalenceError(
-            f"Control-flow equivalence henüz uygulanmadı; fail-closed reddedildi: {control_flow}"
-        )
 
     reference_output: list[str] = []
     reference_runtime = Runtime(reference_output.append)
