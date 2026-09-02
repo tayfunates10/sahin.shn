@@ -51,7 +51,61 @@ def test_control_flow_contract_rejects_branch_with_undefined_temp() -> None:
         ),
     )
 
-    with pytest.raises(IRControlFlowError, match="tanımlı bir geçici koşul"):
+    with pytest.raises(IRControlFlowError, match="tüm ulaşılabilir giriş yollarında tanımlı"):
+        validate_control_flow(program)
+
+
+def test_control_flow_contract_rejects_non_dominating_branch_temp() -> None:
+    program = IRProgram(
+        version=1,
+        instructions=(
+            IRInstruction("const", ("evet_hayır:evet",), "%0"),
+            IRInstruction("branch", ("%0", "then", "else")),
+            IRInstruction("label", ("then",)),
+            IRInstruction("const", ("evet_hayır:evet",), "%1"),
+            IRInstruction("jump", ("join",)),
+            IRInstruction("label", ("else",)),
+            IRInstruction("jump", ("join",)),
+            IRInstruction("label", ("join",)),
+            IRInstruction("branch", ("%1", "yes", "no")),
+            IRInstruction("label", ("yes",)),
+            IRInstruction("label", ("no",)),
+        ),
+    )
+
+    with pytest.raises(IRControlFlowError, match="tüm ulaşılabilir giriş yollarında tanımlı"):
+        validate_control_flow(program)
+
+
+def test_control_flow_contract_accepts_dominating_branch_temp() -> None:
+    program = IRProgram(
+        version=1,
+        instructions=(
+            IRInstruction("const", ("evet_hayır:evet",), "%0"),
+            IRInstruction("branch", ("%0", "then", "else")),
+            IRInstruction("label", ("then",)),
+            IRInstruction("jump", ("join",)),
+            IRInstruction("label", ("else",)),
+            IRInstruction("jump", ("join",)),
+            IRInstruction("label", ("join",)),
+            IRInstruction("branch", ("%0", "yes", "no")),
+            IRInstruction("label", ("yes",)),
+            IRInstruction("label", ("no",)),
+        ),
+    )
+
+    validate_control_flow(program)
+
+
+def test_control_flow_contract_rejects_unknown_opcode() -> None:
+    program = IRProgram(
+        version=1,
+        instructions=(
+            IRInstruction("branche", ("evet_hayır:evet",), "%0"),
+        ),
+    )
+
+    with pytest.raises(IRControlFlowError, match="Bilinmeyen IR opcode"):
         validate_control_flow(program)
 
 
