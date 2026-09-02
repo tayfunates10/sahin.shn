@@ -19,6 +19,7 @@ from .ast_nodes import (
     Name,
     Predicate,
     Program,
+    RangeExpression,
     Unary,
     Write,
 )
@@ -234,8 +235,6 @@ class _Lowerer:
                 for statement in declaration.body:
                     child._statement(statement)
 
-            # Runtime gibi yalnız gerçekten sona düşebilen akışlarda örtük `yok`
-            # döndür. Terminal `ver` sonrasında ulaşılamaz sahte IR üretme.
             if _can_fall_through(child.instructions):
                 implicit = child._temp()
                 child._emit("const", (child._literal(None),), implicit)
@@ -409,6 +408,12 @@ class _Lowerer:
                 raise IRLoweringError(f"Geçersiz üye adı IR'a indirgenemedi: {expression.name!r}")
             result = self._temp()
             self._emit("member", (expression.name, target), result)
+            return result
+        if isinstance(expression, RangeExpression):
+            start = self._expression(expression.start)
+            end = self._expression(expression.end)
+            result = self._temp()
+            self._emit("range", (start, end), result)
             return result
         raise IRLoweringError(
             f"Aşama 10 IR v1 henüz {type(expression).__name__} ifadesini desteklemiyor."
