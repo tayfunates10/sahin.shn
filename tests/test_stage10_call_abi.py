@@ -24,7 +24,9 @@ yaz sonuç
     assert flow.parameter_types == (None,)
     assert flow.return_type is None
     assert flow.captures == ()
-    assert any(item.opcode == "return" for item in flow.instructions)
+    returns = [item for item in flow.instructions if item.opcode == "return"]
+    assert len(returns) == 1
+    assert not any(item.opcode == "const" and item.operands == ("yok:null",) for item in flow.instructions)
 
     calls = [item for item in program.instructions if item.opcode == "call"]
     assert len(calls) == 1
@@ -32,6 +34,23 @@ yaz sonuç
     assert len(calls[0].operands) == 2
     assert calls[0].result is not None
 
+    validate_control_flow(
+        IRProgram(version=1, instructions=flow.instructions),
+        predefined_names=flow.parameters,
+    )
+
+
+def test_flow_without_explicit_return_gets_single_reachable_implicit_yok_return():
+    source = """akış sessiz x
+    y = x
+sonuç = sessiz(3)
+"""
+
+    flow = lower_source(source).flows[0]
+    returns = [item for item in flow.instructions if item.opcode == "return"]
+
+    assert len(returns) == 1
+    assert any(item.opcode == "const" and item.operands == ("yok:null",) for item in flow.instructions)
     validate_control_flow(
         IRProgram(version=1, instructions=flow.instructions),
         predefined_names=flow.parameters,
