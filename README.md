@@ -55,7 +55,7 @@ akış satınAl ürün
 Tamamlanan son kalite kapısı: **Aşama 9 — Araç zinciri**  
 Aktif aşama: **Aşama 10 — Şahin IR + WASM/native backend + performans**
 
-Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları, control-flow primitive'leri, gerçek `IfStatement` lowering + lexical scope korunumu, lazy RHS koruyan kısa devreli `ve/veya` lowering, `Predicate`, `Member` ve doğrudan `Call` + `akış` `Declaration` ABI lowering, flow-body definite-definition, lexical capture/parametre/dönüş semantiği ve bunların referans runtime ↔ WASM/native plan eşdeğerliği doğrulandı. Capability/import yüzeyi genişletilmedi. Aktif alt dilim `RangeExpression` lowering'idir. Kalan ana iş `Pipeline`, `ForEach`, `MatchStatement`, `TryStatement` ve diğer eksik AST/semantic kapsamıdır; final Python 3.11/3.12/3.13 + gerçek `.shn` smoke kapısı ve tam kapsam matrisi tamamlanmadan ilerleme %94'e çıkarılmaz.
+Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları, control-flow primitive'leri, gerçek `IfStatement` lowering + lexical scope korunumu, lazy RHS koruyan kısa devreli `ve/veya` lowering, `Predicate`, `Member`, doğrudan `Call` + `akış` `Declaration` ABI ve `RangeExpression` lowering + WASM/native/equivalence entegrasyonu doğrulandı. Flow-body definite-definition, lexical capture/parametre/dönüş semantiği ve inclusive ileri/geri range semantiği kalite kapılarından geçti; capability/import yüzeyi genişletilmedi. Aktif alt dilim `Pipeline` lowering'idir. Kalan ana iş `ForEach`, `MatchStatement`, `TryStatement` ve diğer eksik AST/semantic kapsamıdır; final Python 3.11/3.12/3.13 + gerçek `.shn` smoke kapısı ve tam kapsam matrisi tamamlanmadan ilerleme %94'e çıkarılmaz.
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -156,12 +156,13 @@ Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-
 - `Member` için açık `member` IR lowering, target-temp definite-definition, backend fail-closed şeması ve runtime/backend equivalence doğrulaması
 - `IRFlow` + `call` + `return` ABI; parametre/type metadata, lexical capture, call target/arity doğrulaması ve bağımsız çağrı frame'i
 - flow/call için referans runtime ↔ WASM/native plan semantik eşdeğerliği, lexical capture okuma/yazma ve dönüş regression testleri
+- `RangeExpression` için açık `range` opcode'u, backend schema/CFG/use-def doğrulaması ve inclusive ileri/geri runtime ↔ WASM/native equivalence
 - control-flow dahil referans runtime ↔ WASM/native plan semantik eşdeğerlik oracle'ı
 - ayrı backend örnek serileri ve workload SHA-256 kimliği kullanan tekrarlanabilir benchmark baseline'ı
 - malformed IR, unknown version/opcode, use-before-definition, duplicate-temp ve capability yüzeyi için property/security regression paketi
 - bu ara kapıların exact-head CI koşuları Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke üzerinde yeşil
 
-Aşama 10 henüz tamamlanmış değildir. Aktif geliştirme dilimi `RangeExpression` lowering'idir. `Pipeline`, `ForEach`, `MatchStatement`, `TryStatement` ve diğer eksik AST/semantic düğümlerinin doğru control-flow/ABI/capability modeliyle IR'a indirilmesi gerekir.
+Aşama 10 henüz tamamlanmış değildir. Aktif geliştirme dilimi `Pipeline` lowering'idir. `ForEach`, `MatchStatement`, `TryStatement` ve diğer eksik AST/semantic düğümlerinin doğru control-flow/ABI/capability modeliyle IR'a indirilmesi gerekir.
 
 ## Kalite ve geliştirme akışı
 
