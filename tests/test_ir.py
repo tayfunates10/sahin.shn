@@ -4,6 +4,7 @@ import pytest
 
 from sahin.ast_nodes import ExpressionStatement, IfStatement, Literal, Name, Program, Write
 from sahin.ir import IRLoweringError, lower_program, lower_source
+from sahin.ir_control_flow import validate_control_flow
 
 
 def test_ir_is_deterministic_for_same_source():
@@ -33,18 +34,65 @@ def test_ir_rejects_semantically_invalid_source_before_lowering():
         lower_source("yaz bilinmeyen\n")
 
 
-def test_ir_v1_fails_closed_for_ast_nodes_not_yet_supported():
+def test_ir_v1_lowers_if_statement_with_deterministic_control_flow():
     program = Program(
         statements=(
             IfStatement(
                 condition=Literal(True),
                 body=(Write(Literal(Decimal("1"))),),
+                else_body=(Write(Literal(Decimal("2"))),),
             ),
         )
     )
 
-    with pytest.raises(IRLoweringError, match="IfStatement"):
-        lower_program(program)
+    lowered = lower_program(program)
+    opcodes = tuple(instruction.opcode for instruction in lowered.instructions)
+
+    assert opcodes == (
+        "const",
+        "branch",
+        "label",
+        "const",
+        "write",
+        "jump",
+        "label",
+        "const",
+        "write",
+        "jump",
+        "label",
+    )
+    assert lowered.instructions[1].operands == (
+        "%0",
+        "__shn_if_0_true",
+        "__shn_if_0_false",
+    )
+    assert validate_control_flow(lowered).labels == (
+        "__shn_if_0_true",
+        "__shn_if_0_false",
+        "__shn_if_0_end",
+    )
+
+
+def test_ir_v1_nested_if_labels_are_unique_and_deterministic():
+    nested = IfStatement(
+        condition=Literal(False),
+        body=(Write(Literal(Decimal("3"))),),
+    )
+    program = Program(
+        statements=(
+            IfStatement(condition=Literal(True), body=(nested,), else_body=()),
+        )
+    )
+
+    first = lower_program(program)
+    second = lower_program(program)
+    labels = [item.operands[0] for item in first.instructions if item.opcode == "label"]
+
+    assert first == second
+    assert len(labels) == len(set(labels))
+    assert "__shn_if_0_true" in labels
+    assert "__shn_if_1_true" in labels
+    validate_control_flow(first)
 
 
 def test_ir_v1_fails_closed_for_short_circuit_boolean_lowering():
