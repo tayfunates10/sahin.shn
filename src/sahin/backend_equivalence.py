@@ -159,6 +159,16 @@ def _execute(instructions: Sequence[IRInstruction]) -> BackendObservation:
 
 def compare_source(source: str) -> EquivalenceReport:
     """IR v1 kapsamındaki kaynakta referans runtime ile iki adapter planını karşılaştırır."""
+    program = lower_source(source)
+    control_flow = next(
+        (item.opcode for item in program.instructions if item.opcode in {"branch", "label", "jump"}),
+        None,
+    )
+    if control_flow is not None:
+        raise BackendEquivalenceError(
+            f"Control-flow equivalence henüz uygulanmadı; fail-closed reddedildi: {control_flow}"
+        )
+
     reference_output: list[str] = []
     reference_runtime = Runtime(reference_output.append)
     reference_state = reference_runtime.execute(parse(tokenize(source)))
@@ -167,7 +177,6 @@ def compare_source(source: str) -> EquivalenceReport:
         output=tuple(reference_output),
     )
 
-    program = lower_source(source)
     wasm_plan = build_wasm_plan(program)
     native_plan = build_native_plan(program)
 

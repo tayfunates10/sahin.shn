@@ -5,7 +5,6 @@ from decimal import Decimal
 import pytest
 
 from sahin.backend_equivalence import BackendEquivalenceError, compare_source
-from sahin.ir import IRLoweringError
 
 
 @pytest.mark.parametrize(
@@ -53,8 +52,8 @@ def test_equivalence_is_deterministic_across_repeated_runs():
     assert first.equivalent
 
 
-def test_equivalence_does_not_bypass_ir_fail_closed_boundary():
-    with pytest.raises(IRLoweringError, match="kısa devreli 've/veya'"):
+def test_equivalence_does_not_bypass_unimplemented_control_flow_boundary():
+    with pytest.raises(BackendEquivalenceError, match="Control-flow equivalence henüz uygulanmadı"):
         compare_source("sonuç = evet veya (1 / 0 == 1)\n")
 
 
