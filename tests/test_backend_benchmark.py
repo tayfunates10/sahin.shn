@@ -16,9 +16,20 @@ from sahin.backend_benchmark import (
 def test_baseline_runs_fixed_corpus_without_skipping_equivalence():
     report = run_baseline(config=BenchmarkConfig(warmups=0, iterations=2))
 
-    assert report.schema_version == 1
-    assert [result.name for result in report.results] == [case.name for case in DEFAULT_CASES]
+    assert report.schema_version == 2
+    assert [result.name for result in report.results] == [
+        name
+        for case in DEFAULT_CASES
+        for name in (case.name, case.name)
+    ]
+    assert [result.backend for result in report.results] == [
+        backend
+        for _case in DEFAULT_CASES
+        for backend in ("wasm", "native")
+    ]
     for result in report.results:
+        assert result.operation == "adapter-plan+execute"
+        assert len(result.workload_sha256) == 64
         assert result.iterations == 2
         assert len(result.samples_ns) == 2
         assert result.min_ns <= result.median_ns <= result.max_ns
@@ -26,8 +37,9 @@ def test_baseline_runs_fixed_corpus_without_skipping_equivalence():
 
 
 def test_baseline_json_is_canonical_and_contains_environment_metadata():
+    case = BenchmarkCase("tek", "x = 2\nyaz x\n")
     report = run_baseline(
-        cases=(BenchmarkCase("tek", "x = 2\nyaz x\n"),),
+        cases=(case,),
         config=BenchmarkConfig(warmups=0, iterations=1),
     )
 
@@ -35,12 +47,23 @@ def test_baseline_json_is_canonical_and_contains_environment_metadata():
     decoded = json.loads(encoded)
 
     assert encoded == report.to_json()
-    assert decoded["schema_version"] == 1
+    assert decoded["schema_version"] == 2
     assert decoded["config"] == {"iterations": 1, "warmups": 0}
-    assert decoded["results"][0]["name"] == "tek"
+    assert [result["backend"] for result in decoded["results"]] == ["wasm", "native"]
+    for result in decoded["results"]:
+        assert result["name"] == "tek"
+        assert result["workload_sha256"] == case.workload_sha256
+        assert result["operation"] == "adapter-plan+execute"
     assert decoded["environment"]["python"]
     assert decoded["environment"]["implementation"]
     assert decoded["environment"]["machine"]
+
+
+def test_workload_digest_changes_when_source_changes():
+    first = BenchmarkCase("aynı-ad", "x = 1\nyaz x\n")
+    second = BenchmarkCase("aynı-ad", "x = 2\nyaz x\n")
+
+    assert first.workload_sha256 != second.workload_sha256
 
 
 @pytest.mark.parametrize(
