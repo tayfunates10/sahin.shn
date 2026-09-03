@@ -55,9 +55,9 @@ akış satınAl ürün
 Tamamlanan son kalite kapısı: **Aşama 9 — Araç zinciri**  
 Aktif aşama: **Aşama 10 — Şahin IR + WASM/native backend + performans**
 
-Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları, control-flow primitive'leri, gerçek `IfStatement` lowering + lexical scope korunumu, lazy RHS koruyan kısa devreli `ve/veya` lowering, `Predicate`, `Member`, doğrudan `Call` + `akış` `Declaration` ABI, `RangeExpression`, `Pipeline`, `ForEach` ve `MatchStatement` lowering + WASM/native/equivalence entegrasyonu doğrulandı. Flow-body definite-definition, lexical capture/parametre/dönüş semantiği, inclusive ileri/geri range semantiği, `ilk`/`sırala`/`seç` pipeline stage zinciri, iterator state/`bitir` semantiği ve Match subject-once/first-match davranışı kalite kapılarından geçti; capability/import yüzeyi genişletilmedi. Aktif alt dilim `TryStatement` error control-flow modelidir. Kalan ana iş `TryStatement` ve diğer eksik AST/semantic kapsamıdır; final Python 3.11/3.12/3.13 + gerçek `.shn` smoke kapısı ve tam kapsam matrisi tamamlanmadan ilerleme %94'e çıkarılmaz.
+Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları, control-flow primitive'leri, gerçek `IfStatement` lowering + lexical scope korunumu, lazy RHS koruyan kısa devreli `ve/veya` lowering, `Predicate`, `Member`, doğrudan `Call` + `akış` `Declaration` ABI, `RangeExpression`, `Pipeline`, `ForEach` ve `MatchStatement` lowering + WASM/native/equivalence entegrasyonu doğrulandı. `TryStatement` için AST → `try_guard`/`catch` lowering, ayrı handler scope'u, normal-yol handler bypass, malformed-handler fail-closed backend doğrulaması ve başarılı/hatalı/nested handler yollarının referans runtime ↔ WASM/native plan eşdeğerliği de doğrulandı. Ancak yakalanan hata nesnesinin kullanıcıya gözlemlenebilir payload/string ABI eşdeğerliği henüz kapanmadığı için `TryStatement` tam destekli gösterilmez. Kalan ana iş bu gözlemlenebilir hata ABI'si ile `ExpressionStatement`, `FieldDeclaration`, diğer `Command` ve diğer `Declaration` düğümleridir; final Python 3.11/3.12/3.13 + gerçek `.shn` smoke kapısı ve tam kapsam matrisi tamamlanmadan ilerleme %94'e çıkarılmaz.
 
-İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
+İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır. Bu nedenle doğrulanmış ara ilerlemeye rağmen genel yüzde, Aşama 10 tamamlanana kadar **%87** olarak tutulur.
 
 ## Roadmap
 
@@ -160,12 +160,14 @@ Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-
 - `Pipeline` için açık `pipeline` opcode'u, stage/arity/use-def/result fail-closed doğrulaması ve `ilk`/`sırala`/`seç` runtime ↔ WASM/native equivalence
 - `ForEach` için explicit iterator IR, lexical loop scope, terminator-aware `bitir`, iterator-origin/use-def backend doğrulaması ve referans runtime ↔ WASM/native equivalence
 - `MatchStatement` için subject-once, kaynak sıralı pattern karşılaştırması, first-match control-flow ve `yaz`/`bildir` runtime ↔ WASM/native equivalence
+- `TryStatement` için `try_guard` / `catch` IR, lexical error-binding scope, normal-yol handler bypass ve malformed-handler fail-closed backend doğrulaması
+- Try başarı, sıfıra bölme hata yolu ve nested-try inner-handler önceliği için referans runtime ↔ WASM/native plan equivalence
 - control-flow dahil referans runtime ↔ WASM/native plan semantik eşdeğerlik oracle'ı
 - ayrı backend örnek serileri ve workload SHA-256 kimliği kullanan tekrarlanabilir benchmark baseline'ı
 - malformed IR, unknown version/opcode, use-before-definition, duplicate-temp ve capability yüzeyi için property/security regression paketi
-- bu ara kapıların exact-head CI koşuları Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke üzerinde yeşil
+- bu ara kapıların Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke kalite koşuları yeşil
 
-Aşama 10 henüz tamamlanmış değildir. Aktif geliştirme dilimi `TryStatement` error control-flow modelidir. Diğer eksik AST/semantic düğümlerinin doğru control-flow/ABI/capability modeliyle IR'a indirilmesi gerekir.
+Aşama 10 henüz tamamlanmış değildir. `TryStatement` control-flow/error-binding/backend handler çekirdeği doğrulandı; yakalanan hata nesnesinin kullanıcıya gözlemlenebilir payload/string ABI eşdeğerliği açık kalmaktadır. Bunun ardından `ExpressionStatement`, `FieldDeclaration`, diğer `Command` ve diğer `Declaration` düğümleri kendi semantik/ABI/capability modelleriyle kapatılacaktır.
 
 ## Kalite ve geliştirme akışı
 
