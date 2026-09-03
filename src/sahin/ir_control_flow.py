@@ -10,10 +10,10 @@ class IRControlFlowError(ValueError):
     """Şahin IR control-flow sözleşmesi ihlal edildiğinde oluşur."""
 
 
-CONTROL_FLOW_OPCODES = frozenset({"label", "jump", "branch", "return"})
+CONTROL_FLOW_OPCODES = frozenset({"label", "jump", "branch", "return", "try_guard"})
 NON_CONTROL_FLOW_OPCODES = frozenset({
     "const", "load", "unary", "binary", "predicate", "member", "call",
-    "store", "bind", "write", "range", "pipeline",
+    "store", "bind", "write", "range", "pipeline", "catch",
     "iter_begin", "iter_has_next", "iter_value", "iter_advance",
 })
 KNOWN_OPCODES = CONTROL_FLOW_OPCODES | NON_CONTROL_FLOW_OPCODES
@@ -88,6 +88,7 @@ def validate_control_flow(
     label_set: set[str] = set()
     label_indices: dict[str, int] = {}
     targets: list[str] = []
+    try_regions: list[tuple[int, str, str]] = []
     defined_temps: set[str] = set()
 
     for index, instruction in enumerate(program.instructions):
@@ -140,6 +141,27 @@ def validate_control_flow(
             targets.extend((true_target, false_target))
             continue
 
+        if opcode == "try_guard":
+            if len(instruction.operands) != 2 or instruction.result is not None:
+                raise IRControlFlowError(
+                    f"try_guard handler + protected_end etiketi almalı ve sonuç üretmemelidir (instruction {index})."
+                )
+            handler, protected_end = instruction.operands
+            _validate_label_name(handler, index)
+            _validate_label_name(protected_end, index)
+            if handler == protected_end:
+                raise IRControlFlowError(
+                    f"try_guard handler ve protected_end etiketleri farklı olmalıdır (instruction {index})."
+                )
+            try_regions.append((index, handler, protected_end))
+            continue
+
+        if opcode == "catch":
+            if instruction.operands or instruction.result is None:
+                raise IRControlFlowError(
+                    f"catch operand almamalı ve geçici bir hata sonucu üretmelidir (instruction {index})."
+                )
+
         if opcode == "return":
             if len(instruction.operands) != 1 or instruction.result is not None:
                 raise IRControlFlowError(
@@ -157,22 +179,59 @@ def validate_control_flow(
                 )
             defined_temps.add(instruction.result)
 
-    missing = tuple(target for target in targets if target not in label_set)
+    referenced_targets = [*targets]
+    for _, handler, protected_end in try_regions:
+        referenced_targets.extend((handler, protected_end))
+    missing = tuple(target for target in referenced_targets if target not in label_set)
     if missing:
         raise IRControlFlowError(
             "Tanımsız control-flow hedefi reddedildi: " + ", ".join(missing)
         )
 
+    handler_indices: set[int] = set()
+    for guard_index, handler, protected_end in try_regions:
+        handler_index = label_indices[handler]
+        protected_end_index = label_indices[protected_end]
+        if protected_end_index <= guard_index:
+            raise IRControlFlowError(
+                f"try_guard protected_end etiketi guard sonrasında olmalıdır: {protected_end} (instruction {guard_index})."
+            )
+        if handler_index <= protected_end_index:
+            raise IRControlFlowError(
+                f"try_guard handler etiketi korunan bölgenin sonrasında olmalıdır: {handler} (instruction {guard_index})."
+            )
+        if handler in targets:
+            raise IRControlFlowError(
+                f"Hata handler etiketi normal jump/branch hedefi olamaz: {handler}."
+            )
+        catch_index = handler_index + 1
+        if catch_index >= len(program.instructions) or program.instructions[catch_index].opcode != "catch":
+            raise IRControlFlowError(
+                f"Hata handler etiketi hemen ardından catch instruction'ı içermelidir: {handler}."
+            )
+        handler_indices.add(catch_index)
+
+    for index, instruction in enumerate(program.instructions):
+        if instruction.opcode == "catch" and index not in handler_indices:
+            raise IRControlFlowError(
+                f"catch yalnız doğrulanmış try_guard handler girişinde kullanılabilir (instruction {index})."
+            )
+
     instruction_count = len(program.instructions)
     if instruction_count:
         successors: list[set[int]] = [set() for _ in range(instruction_count)]
         predecessors: list[set[int]] = [set() for _ in range(instruction_count)]
+        try_by_index = {guard_index: handler for guard_index, handler, _ in try_regions}
         for index, instruction in enumerate(program.instructions):
             if instruction.opcode == "jump":
                 successors[index].add(label_indices[instruction.operands[0]])
             elif instruction.opcode == "branch":
                 successors[index].add(label_indices[instruction.operands[1]])
                 successors[index].add(label_indices[instruction.operands[2]])
+            elif instruction.opcode == "try_guard":
+                if index + 1 < instruction_count:
+                    successors[index].add(index + 1)
+                successors[index].add(label_indices[try_by_index[index]])
             elif instruction.opcode == "return":
                 pass
             elif index + 1 < instruction_count:
@@ -180,6 +239,16 @@ def validate_control_flow(
         for source, target_indices in enumerate(successors):
             for target in target_indices:
                 predecessors[target].add(source)
+
+        for guard_index, handler, _ in try_regions:
+            handler_index = label_indices[handler]
+            normal_predecessors = predecessors[handler_index] - {guard_index}
+            if normal_predecessors:
+                sources = ", ".join(str(index) for index in sorted(normal_predecessors))
+                raise IRControlFlowError(
+                    f"Hata handler etiketi yalnız try_guard exceptional kenarından erişilebilir olmalıdır: {handler} "
+                    f"(normal predecessor instruction: {sources})."
+                )
 
         in_temps: list[set[str] | None] = [None] * instruction_count
         out_temps: list[set[str] | None] = [None] * instruction_count
