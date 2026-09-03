@@ -17,6 +17,7 @@ from .ast_nodes import (
     Literal,
     Member,
     Name,
+    Pipeline,
     Predicate,
     Program,
     RangeExpression,
@@ -354,6 +355,17 @@ class _Lowerer:
         self._emit("load", (result_name,), result)
         return result
 
+    def _pipeline_argument(self, stage_name: str, argument: Expression) -> str:
+        # `sırala ad` / `seç aktif` gibi belgelenmiş alan seçicileri lexical isim
+        # çözümlemesine zorlanmaz. Aynı ad kapsamda gerçekten tanımlıysa normal
+        # ifade semantiği korunur; yalnız çözülemeyen çıplak ad selector metnine dönüşür.
+        if stage_name in {"sırala", "seç"} and isinstance(argument, Name):
+            if self._resolve_name(argument.value) is None and argument.value not in self._flow_names:
+                result = self._temp()
+                self._emit("const", (self._literal(argument.value),), result)
+                return result
+        return self._expression(argument)
+
     def _expression(self, expression: Expression) -> str:
         if isinstance(expression, Literal):
             result = self._temp()
@@ -415,6 +427,22 @@ class _Lowerer:
             result = self._temp()
             self._emit("range", (start, end), result)
             return result
+        if isinstance(expression, Pipeline):
+            value = self._expression(expression.source)
+            for stage in expression.stages:
+                if stage.name not in {"ilk", "sırala", "seç"}:
+                    raise IRLoweringError(f"Bilinmeyen pipeline aşaması IR'a indirgenemedi: {stage.name!r}")
+                # Referans runtime built-in stage'lerde yalnız ilk argümanı değerlendirir;
+                # fazladan argümanlar IR'da da side-effect/hata üretemez.
+                arguments = (
+                    (self._pipeline_argument(stage.name, stage.arguments[0]),)
+                    if stage.arguments
+                    else ()
+                )
+                result = self._temp()
+                self._emit("pipeline", (stage.name, value, *arguments), result)
+                value = result
+            return value
         raise IRLoweringError(
             f"Aşama 10 IR v1 henüz {type(expression).__name__} ifadesini desteklemiyor."
         )
