@@ -98,10 +98,31 @@ def test_standalone_catch_is_fail_closed():
         validate_control_flow(program)
 
 
+@pytest.mark.parametrize("builder", (build_wasm_plan, build_native_plan))
+def test_try_opcodes_are_accepted_without_widening_adapter_surface(builder):
+    plan = builder(_valid_try_program())
+    assert plan.instructions == _valid_try_program().instructions
+    if hasattr(plan, "imports"):
+        assert plan.imports == ()
+    if hasattr(plan, "capabilities"):
+        assert plan.capabilities == ()
+
+
 @pytest.mark.parametrize(
     ("builder", "error_type"),
     ((build_wasm_plan, WasmBackendError), (build_native_plan, NativeBackendError)),
 )
-def test_try_opcodes_remain_backend_closed_until_error_equivalence_slice(builder, error_type):
-    with pytest.raises(error_type, match="desteklenmeyen opcode"):
-        builder(_valid_try_program())
+def test_backend_rejects_malformed_try_handler(builder, error_type):
+    malformed = IRProgram(
+        version=1,
+        instructions=(
+            IRInstruction("try_guard", ("handler", "protected_end")),
+            IRInstruction("label", ("protected_end",)),
+            IRInstruction("jump", ("join",)),
+            IRInstruction("label", ("handler",)),
+            IRInstruction("const", ("tam:1",), "%not_catch"),
+            IRInstruction("label", ("join",)),
+        ),
+    )
+    with pytest.raises(error_type, match="try control-flow"):
+        builder(malformed)
