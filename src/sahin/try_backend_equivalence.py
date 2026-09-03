@@ -48,6 +48,15 @@ def _decode_literal(encoded: str) -> object:
 
 
 def _format(value: object) -> str:
+    # Referans runtime `olmazsa hata` bağında RuntimeErrorSHN nesnesini saklar ve
+    # `yaz hata` çağrısında onun kaynak-konumlu __str__ çıktısını gözlemler. IR v1
+    # instruction'ları henüz bu provenance'ı taşımadığı için ham backend exception'ını
+    # `str()` ile yaklaşıklaştırmak semantik eşdeğerlik iddiasını sahte biçimde yeşile
+    # çevirebilir. Provenance ABI gelene kadar bu gözlem noktası fail-closed kalır.
+    if isinstance(value, BaseException):
+        raise TryBackendEquivalenceError(
+            "Yakalanan hata payload'ı kaynak-konum provenance ABI olmadan gözlemlenemez."
+        )
     if value is True:
         return "evet"
     if value is False:
