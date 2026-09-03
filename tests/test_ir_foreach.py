@@ -31,7 +31,7 @@ def test_foreach_lowers_iterable_once_with_lexical_loop_scope():
     validate_control_flow(program)
 
 
-def test_foreach_bitir_jumps_to_innermost_loop_end():
+def test_foreach_bitir_jumps_to_innermost_loop_end_without_dead_latch():
     program = lower_source(
         "her sayı içinden 1..3\n"
         "    bitir\n"
@@ -46,6 +46,20 @@ def test_foreach_bitir_jumps_to_innermost_loop_end():
     end_label = end_labels[0]
     jumps = [instruction.operands[0] for instruction in program.instructions if instruction.opcode == "jump"]
     assert end_label in jumps
+    assert all(instruction.opcode != "iter_advance" for instruction in program.instructions)
+    validate_control_flow(program)
+
+
+def test_foreach_stops_lowering_statements_after_bitir():
+    program = lower_source(
+        "her sayı içinden 1..3\n"
+        "    bitir\n"
+        "    yaz 99\n"
+    )
+
+    opcodes = [instruction.opcode for instruction in program.instructions]
+    assert "write" not in opcodes
+    assert "iter_advance" not in opcodes
     validate_control_flow(program)
 
 
