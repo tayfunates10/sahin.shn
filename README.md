@@ -55,7 +55,7 @@ akış satınAl ürün
 Tamamlanan son kalite kapısı: **Aşama 9 — Araç zinciri**  
 Aktif aşama: **Aşama 10 — Şahin IR + WASM/native backend + performans**
 
-Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları, control-flow primitive'leri, gerçek `IfStatement` lowering + lexical scope korunumu, lazy RHS koruyan kısa devreli `ve/veya` lowering, `Predicate`, `Member`, doğrudan `Call` + `akış` `Declaration` ABI, `RangeExpression` ve `Pipeline` lowering + WASM/native/equivalence entegrasyonu doğrulandı. Flow-body definite-definition, lexical capture/parametre/dönüş semantiği, inclusive ileri/geri range semantiği ve `ilk`/`sırala`/`seç` pipeline stage zinciri kalite kapılarından geçti; capability/import yüzeyi genişletilmedi. Aktif alt dilim `ForEach` iteration/control-flow modelidir. Kalan ana iş `ForEach`, `MatchStatement`, `TryStatement` ve diğer eksik AST/semantic kapsamıdır; final Python 3.11/3.12/3.13 + gerçek `.shn` smoke kapısı ve tam kapsam matrisi tamamlanmadan ilerleme %94'e çıkarılmaz.
+Aşama 10'da deterministik IR çekirdeği, güvenli WASM/native adapter sınırları, control-flow primitive'leri, gerçek `IfStatement` lowering + lexical scope korunumu, lazy RHS koruyan kısa devreli `ve/veya` lowering, `Predicate`, `Member`, doğrudan `Call` + `akış` `Declaration` ABI, `RangeExpression`, `Pipeline` ve `ForEach` lowering + WASM/native/equivalence entegrasyonu doğrulandı. Flow-body definite-definition, lexical capture/parametre/dönüş semantiği, inclusive ileri/geri range semantiği, `ilk`/`sırala`/`seç` pipeline stage zinciri ve iterator state/`bitir` semantiği kalite kapılarından geçti; capability/import yüzeyi genişletilmedi. Aktif alt dilim `MatchStatement` control-flow modelidir. Kalan ana iş `MatchStatement`, `TryStatement` ve diğer eksik AST/semantic kapsamıdır; final Python 3.11/3.12/3.13 + gerçek `.shn` smoke kapısı ve tam kapsam matrisi tamamlanmadan ilerleme %94'e çıkarılmaz.
 
 İlerleme yüzdesi yalnızca ilgili kalite kapıları ve testler geçtiğinde artırılır.
 
@@ -158,12 +158,13 @@ Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-
 - flow/call için referans runtime ↔ WASM/native plan semantik eşdeğerliği, lexical capture okuma/yazma ve dönüş regression testleri
 - `RangeExpression` için açık `range` opcode'u, backend schema/CFG/use-def doğrulaması ve inclusive ileri/geri runtime ↔ WASM/native equivalence
 - `Pipeline` için açık `pipeline` opcode'u, stage/arity/use-def/result fail-closed doğrulaması ve `ilk`/`sırala`/`seç` runtime ↔ WASM/native equivalence
+- `ForEach` için explicit iterator IR, lexical loop scope, terminator-aware `bitir`, iterator-origin/use-def backend doğrulaması ve referans runtime ↔ WASM/native equivalence
 - control-flow dahil referans runtime ↔ WASM/native plan semantik eşdeğerlik oracle'ı
 - ayrı backend örnek serileri ve workload SHA-256 kimliği kullanan tekrarlanabilir benchmark baseline'ı
 - malformed IR, unknown version/opcode, use-before-definition, duplicate-temp ve capability yüzeyi için property/security regression paketi
 - bu ara kapıların exact-head CI koşuları Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke üzerinde yeşil
 
-Aşama 10 henüz tamamlanmış değildir. Aktif geliştirme dilimi `ForEach` iteration/control-flow modelidir. `MatchStatement`, `TryStatement` ve diğer eksik AST/semantic düğümlerinin doğru control-flow/ABI/capability modeliyle IR'a indirilmesi gerekir.
+Aşama 10 henüz tamamlanmış değildir. Aktif geliştirme dilimi `MatchStatement` control-flow modelidir. `TryStatement` ve diğer eksik AST/semantic düğümlerinin doğru control-flow/ABI/capability modeliyle IR'a indirilmesi gerekir.
 
 ## Kalite ve geliştirme akışı
 
