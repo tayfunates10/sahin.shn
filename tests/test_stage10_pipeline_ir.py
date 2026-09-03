@@ -28,3 +28,29 @@ def test_pipeline_opcode_has_explicit_result() -> None:
     stage = next(item for item in program.instructions if item.opcode == "pipeline")
     assert isinstance(stage, IRInstruction)
     assert stage.result is not None
+
+
+def test_pipeline_implicit_field_selector_lowers_as_text_literal() -> None:
+    program = lower_source("sonuç = 1..5\n    | sırala ad\n    | seç aktif\n")
+    instructions = list(program.instructions)
+    stages = [item for item in instructions if item.opcode == "pipeline"]
+
+    assert len(stages) == 2
+    selector_literals = {
+        item.result: item.operands[0]
+        for item in instructions
+        if item.opcode == "const" and item.result is not None
+    }
+    assert selector_literals[stages[0].operands[2]] == 'metin:"ad"'
+    assert selector_literals[stages[1].operands[2]] == 'metin:"aktif"'
+
+
+def test_pipeline_extra_arguments_are_not_evaluated_like_reference_runtime() -> None:
+    program = lower_source("sonuç = 1..5\n    | ilk 1, (1 / 0)\n")
+    stage = next(item for item in program.instructions if item.opcode == "pipeline")
+
+    assert len(stage.operands) == 3
+    assert not any(
+        item.opcode == "binary" and item.operands and item.operands[0] == "/"
+        for item in program.instructions
+    )
