@@ -355,6 +355,17 @@ class _Lowerer:
         self._emit("load", (result_name,), result)
         return result
 
+    def _pipeline_argument(self, stage_name: str, argument: Expression) -> str:
+        # `sırala ad` / `seç aktif` gibi belgelenmiş alan seçicileri lexical isim
+        # çözümlemesine zorlanmaz. Aynı ad kapsamda gerçekten tanımlıysa normal
+        # ifade semantiği korunur; yalnız çözülemeyen çıplak ad selector metnine dönüşür.
+        if stage_name in {"sırala", "seç"} and isinstance(argument, Name):
+            if self._resolve_name(argument.value) is None and argument.value not in self._flow_names:
+                result = self._temp()
+                self._emit("const", (self._literal(argument.value),), result)
+                return result
+        return self._expression(argument)
+
     def _expression(self, expression: Expression) -> str:
         if isinstance(expression, Literal):
             result = self._temp()
@@ -421,7 +432,13 @@ class _Lowerer:
             for stage in expression.stages:
                 if stage.name not in {"ilk", "sırala", "seç"}:
                     raise IRLoweringError(f"Bilinmeyen pipeline aşaması IR'a indirgenemedi: {stage.name!r}")
-                arguments = tuple(self._expression(argument) for argument in stage.arguments)
+                # Referans runtime built-in stage'lerde yalnız ilk argümanı değerlendirir;
+                # fazladan argümanlar IR'da da side-effect/hata üretemez.
+                arguments = (
+                    (self._pipeline_argument(stage.name, stage.arguments[0]),)
+                    if stage.arguments
+                    else ()
+                )
                 result = self._temp()
                 self._emit("pipeline", (stage.name, value, *arguments), result)
                 value = result
