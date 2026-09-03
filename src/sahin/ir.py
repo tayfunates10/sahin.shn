@@ -16,6 +16,7 @@ from .ast_nodes import (
     ForEach,
     IfStatement,
     Literal,
+    MatchStatement,
     Member,
     Name,
     Pipeline,
@@ -280,6 +281,42 @@ class _Lowerer:
             )
         )
 
+    def _lower_write_command(self, statement: Command) -> None:
+        if statement.arguments:
+            value = self._expression(statement.arguments[0])
+        else:
+            value = self._temp()
+            self._emit("const", (self._literal(None),), value)
+        # Referans runtime `yaz`/`bildir` için yalnız ilk argümanı değerlendirir;
+        # fazladan argüman/arrow bu komut yolunda side-effect üretmez.
+        self._emit("write", (value,))
+
+    def _lower_match(self, statement: MatchStatement) -> None:
+        # Subject referans runtime ile aynı şekilde tam bir kez değerlendirilir.
+        subject = self._expression(statement.subject)
+        (end_label,) = self._labels("match", "end")
+
+        for case in statement.cases:
+            body_label, next_label = self._labels("match_case", "body", "next")
+            pattern = self._expression(case.pattern)
+            matched = self._temp()
+            self._emit("binary", ("==", subject, pattern), matched)
+            self._emit("branch", (matched, body_label, next_label))
+
+            self._emit("label", (body_label,))
+            self._push_scope()
+            try:
+                self._statement(case.statement)
+                case_falls_through = self._statement_falls_through(case.statement)
+            finally:
+                self._pop_scope()
+            if case_falls_through:
+                self._emit("jump", (end_label,))
+
+            self._emit("label", (next_label,))
+
+        self._emit("label", (end_label,))
+
     def _statement(self, statement) -> None:
         if isinstance(statement, Declaration):
             if statement.kind != "akış":
@@ -301,6 +338,9 @@ class _Lowerer:
                 return
             if statement.name == "bitir" and self._loop_end_labels:
                 self._emit("jump", (self._loop_end_labels[-1],))
+                return
+            if statement.name in {"yaz", "bildir"} and statement.subject is None:
+                self._lower_write_command(statement)
                 return
             raise IRLoweringError(
                 f"Aşama 10 IR v1 henüz {statement.name!r} Command düğümünü bu kapsamda desteklemiyor."
@@ -373,6 +413,9 @@ class _Lowerer:
                 self._emit("iter_advance", (iterator,))
                 self._emit("jump", (check_label,))
             self._emit("label", (end_label,))
+            return
+        if isinstance(statement, MatchStatement):
+            self._lower_match(statement)
             return
         if isinstance(statement, ExpressionStatement):
             raise IRLoweringError(
