@@ -17,6 +17,7 @@ from .ast_nodes import (
     Literal,
     Member,
     Name,
+    Pipeline,
     Predicate,
     Program,
     RangeExpression,
@@ -415,6 +416,16 @@ class _Lowerer:
             result = self._temp()
             self._emit("range", (start, end), result)
             return result
+        if isinstance(expression, Pipeline):
+            value = self._expression(expression.source)
+            for stage in expression.stages:
+                if stage.name not in {"ilk", "sırala", "seç"}:
+                    raise IRLoweringError(f"Bilinmeyen pipeline aşaması IR'a indirgenemedi: {stage.name!r}")
+                arguments = tuple(self._expression(argument) for argument in stage.arguments)
+                result = self._temp()
+                self._emit("pipeline", (stage.name, value, *arguments), result)
+                value = result
+            return value
         raise IRLoweringError(
             f"Aşama 10 IR v1 henüz {type(expression).__name__} ifadesini desteklemiyor."
         )
