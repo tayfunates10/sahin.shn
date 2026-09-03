@@ -13,8 +13,16 @@ def _rewrite_sequence(
     backend_name: str,
 ) -> tuple[IRInstruction, ...]:
     """Iterator opcode'larını şema/origin doğrulamasından sonra ortak validator biçimine indirger."""
+    # Origin türü lexical instruction sırasından bağımsızdır. Bir consumer'ın bu
+    # handle'a gerçekten ulaşılabilir tüm giriş yollarında sahip olup olmadığı ise
+    # aşağıdaki sentetik programı doğrulayan ortak CFG definite-definition analiziyle
+    # kanıtlanır. Böylece ileri jump + geri edge gibi geçerli CFG'ler reddedilmez.
+    iterator_temps = {
+        instruction.result
+        for instruction in instructions
+        if instruction.opcode == "iter_begin" and instruction.result is not None
+    }
     rewritten: list[IRInstruction] = []
-    iterator_temps: set[str] = set()
 
     for index, instruction in enumerate(instructions):
         opcode = instruction.opcode
@@ -43,7 +51,6 @@ def _rewrite_sequence(
                     f"{backend_name} adapter iter_begin için geçici bir iterator sonucu zorunlu tuttu "
                     f"(instruction {index})."
                 )
-            iterator_temps.add(result)
             # Kaynak temp kullanımı + iterator result definite-definition aynı kalır.
             rewritten.append(IRInstruction("unary", ("+", operand), result))
             continue
