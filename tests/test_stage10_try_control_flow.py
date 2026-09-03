@@ -75,6 +75,22 @@ def test_try_handler_cannot_be_a_normal_jump_target():
         validate_control_flow(program)
 
 
+def test_try_handler_cannot_be_reached_by_normal_fallthrough():
+    program = IRProgram(
+        version=1,
+        instructions=(
+            IRInstruction("try_guard", ("handler", "protected_end")),
+            IRInstruction("const", ("tam:1",), "%value"),
+            IRInstruction("label", ("protected_end",)),
+            IRInstruction("label", ("handler",)),
+            IRInstruction("catch", (), "%error"),
+        ),
+    )
+
+    with pytest.raises(IRControlFlowError, match="yalnız try_guard exceptional kenarından"):
+        validate_control_flow(program)
+
+
 def test_standalone_catch_is_fail_closed():
     program = IRProgram(version=1, instructions=(IRInstruction("catch", (), "%error"),))
 
