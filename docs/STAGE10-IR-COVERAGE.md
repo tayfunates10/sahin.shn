@@ -32,7 +32,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `IfStatement` | ✅ | Deterministik `branch/label/jump`, lexical scope ve control-flow equivalence doğrulandı |
 | `ForEach` | ✅ | Iterator IR, lexical loop scope, terminator-aware `bitir`, WASM/native origin/use-def doğrulaması ve referans runtime ↔ backend equivalence exact-head CI ile doğrulandı |
 | `MatchStatement` | ✅ | Subject tek değerlendirme, kaynak sıralı pattern karşılaştırması, first-match `binary ==` + `branch/label/jump` ve WASM/native equivalence exact-head CI ile doğrulandı |
-| `TryStatement` | 🚧 | Sıradaki aktif dilim: hata control-flow, error binding scope ve başarılı/hatalı yollar için açık fail-closed ABI tanımlanacak |
+| `TryStatement` | 🚧 | AST lowering, `try_guard`/`catch`, lexical handler scope, normal-path handler bypass, malformed-handler fail-closed doğrulaması ve başarılı/hatalı/nested handler yolları WASM/native plan equivalence ile doğrulandı. Yakalanan hata nesnesinin kullanıcıya gözlemlenebilir payload/string ABI eşdeğerliği henüz tamamlanmadı. |
 
 ## Control-flow ve çağrı sözleşmesi
 
@@ -49,6 +49,10 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 - ✅ Iterator consumer opcode'ları yalnız `iter_begin` tarafından üretilmiş handle üzerinde kabul ediliyor; malformed ve use-before-definition yolları fail-closed reddediliyor.
 - ✅ `MatchStatement` subject'i bir kez değerlendiriyor; patternler kaynak sırasıyla yalnız erişilen path üzerinde değerlendirilip ilk eşleşmede end label'ına ilerliyor.
 - ✅ Match case `yaz`/`bildir` komutları referans runtime gibi yalnız ilk argümanı değerlendiriyor; diğer case Command türleri fail-closed kalıyor.
+- ✅ `TryStatement` korunan gövde ve handler'ı ayrı lexical scope'larda indiriyor; normal başarı yolu handler'a fallthrough yapmadan açık join'e ilerliyor.
+- ✅ `try_guard` / `catch` backend sözleşmesi özgün try-aware CFG üzerinde doğrulanıyor; malformed handler/catch ve normal handler girişi fail-closed reddediliyor.
+- ✅ Try başarı, sıfıra bölme hata yolu ve nested-try inner-handler önceliği referans runtime ↔ WASM/native plan equivalence testlerinden geçti.
+- 🚧 Yakalanan hata nesnesinin kullanıcı tarafından okunması/yazdırılması için payload/string ABI eşdeğerliği henüz kanıtlanmadı; bu gözlemlenebilir davranış tamamlanmadan `TryStatement` tam destekli sayılmaz.
 - ✅ Adapter entegrasyonu herhangi bir yeni capability/import açmıyor.
 
 ## Kalan kabul sırası
@@ -63,8 +67,9 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 8. ✅ `Pipeline` lowering + backend/equivalence kalite kapısını tamamla.
 9. ✅ `ForEach` IR lowering/control-flow + WASM/native adapter/equivalence kalite kapısını tamamla.
 10. ✅ `MatchStatement` subject-once/first-match control-flow + backend equivalence kalite kapısını tamamla.
-11. 🚧 `TryStatement` hata control-flow/error-binding sözleşmesini küçük ayrı PR ile ekle; ardından kalan statement/Command/Declaration düğümlerini kapat.
-12. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
+11. 🚧 `TryStatement` control-flow/error-binding/backend handler equivalence çekirdeği doğrulandı; sıradaki küçük dilim yakalanan hata payload/string ABI eşdeğerliğini kapatmak.
+12. ⏳ Kalan `ExpressionStatement`, `FieldDeclaration`, diğer `Command` ve diğer `Declaration` düğümlerini kendi semantik/ABI/capability sözleşmeleriyle fail-closed biçimde kapat.
+13. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
 
 ## Kalite ilkeleri
 
@@ -75,4 +80,6 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 - `Call` yalnız doğrulanmış `IRFlow` hedefi, doğru arity ve doğrulanmış lexical capture/return ABI ile kabul edilir.
 - Iterator consumer opcode'ları yalnız doğrulanmış `iter_begin` handle'ı ve CFG definite-definition kanıtı ile kabul edilir.
 - Match pattern sırası ve first-match davranışı backend optimizasyonlarıyla değiştirilemez.
+- Try handler yalnız doğrulanmış exceptional kenardan erişilebilir; normal jump/branch/fallthrough ile handler girişi yasaktır.
+- Yakalanan hata değeri gözlemlenebilir olduğunda referans runtime ile payload/string eşdeğerliği kanıtlanmadan backend desteği tamamlandı sayılmaz.
 - Benchmark veya performans hedefi semantik eşdeğerlik kontrolünü devre dışı bırakamaz.
