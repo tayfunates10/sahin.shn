@@ -23,6 +23,7 @@ from .ast_nodes import (
     Predicate,
     Program,
     RangeExpression,
+    TryStatement,
     Unary,
     Write,
 )
@@ -224,6 +225,8 @@ class _Lowerer:
             if not statement.else_body:
                 return True
             return self._block_falls_through(statement.body) or self._block_falls_through(statement.else_body)
+        if isinstance(statement, TryStatement):
+            return self._block_falls_through(statement.body) or self._block_falls_through(statement.except_body)
         return True
 
     def _block_falls_through(self, statements) -> bool:
@@ -314,6 +317,38 @@ class _Lowerer:
                 self._emit("jump", (end_label,))
 
             self._emit("label", (next_label,))
+
+        self._emit("label", (end_label,))
+
+    def _lower_try(self, statement: TryStatement) -> None:
+        handler_label, protected_end_label, end_label = self._labels(
+            "try", "handler", "protected_end", "end"
+        )
+        self._emit("try_guard", (handler_label, protected_end_label))
+
+        self._push_scope()
+        try:
+            body_falls_through = self._lower_block(statement.body)
+        finally:
+            self._pop_scope()
+
+        self._emit("label", (protected_end_label,))
+        if body_falls_through:
+            self._emit("jump", (end_label,))
+
+        self._emit("label", (handler_label,))
+        error_value = self._temp()
+        self._emit("catch", (), error_value)
+        self._push_scope()
+        try:
+            if statement.error_name:
+                error_name = self._declare_name(statement.error_name)
+                self._emit("store", (error_name, error_value))
+            handler_falls_through = self._lower_block(statement.except_body)
+        finally:
+            self._pop_scope()
+        if handler_falls_through:
+            self._emit("jump", (end_label,))
 
         self._emit("label", (end_label,))
 
@@ -416,6 +451,9 @@ class _Lowerer:
             return
         if isinstance(statement, MatchStatement):
             self._lower_match(statement)
+            return
+        if isinstance(statement, TryStatement):
+            self._lower_try(statement)
             return
         if isinstance(statement, ExpressionStatement):
             raise IRLoweringError(
