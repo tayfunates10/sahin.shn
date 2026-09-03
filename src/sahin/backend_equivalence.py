@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 import json
@@ -32,6 +32,12 @@ class EquivalenceReport:
     @property
     def equivalent(self) -> bool:
         return self.reference == self.wasm == self.native
+
+
+@dataclass(slots=True)
+class _IteratorState:
+    items: tuple[object, ...]
+    index: int = 0
 
 
 def _decode_literal(encoded: str) -> object:
@@ -131,6 +137,14 @@ def _pipeline(stage: str, value: object, argument: object = None, *, has_argumen
     raise BackendEquivalenceError(f"Bilinmeyen pipeline aşaması: {stage!r}")
 
 
+def _iterator_source(value: object) -> _IteratorState:
+    if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
+        raise BackendEquivalenceError("IR iter_begin kaynağı yinelenebilir bir değer olmalıdır.")
+    # Kaynak yalnız bir kez snapshot edilir; sonraki has_next/value/advance aynı
+    # iterator state üzerinde deterministik biçimde ilerler.
+    return _IteratorState(tuple(value))
+
+
 def _execute(
     instructions: Sequence[IRInstruction],
     flows: Sequence[IRFlow] = (),
@@ -167,6 +181,12 @@ def _execute(
                 return temps[name]
             except KeyError as exc:
                 raise BackendEquivalenceError(f"Tanımsız IR geçici değeri: {name}") from exc
+
+        def iterator(name: str) -> _IteratorState:
+            value = temp(name)
+            if not isinstance(value, _IteratorState):
+                raise BackendEquivalenceError(f"Iterator state beklenen geçici değer geçersiz: {name}")
+            return value
 
         def lookup(name: str) -> object:
             if name in local_values:
@@ -260,6 +280,21 @@ def _execute(
                     temps[result] = _pipeline(stage, source_value, temp(argument_names[0]), has_argument=True)
                 else:
                     temps[result] = _pipeline(stage, source_value)
+            elif opcode == "iter_begin" and result is not None:
+                temps[result] = _iterator_source(temp(operands[0]))
+            elif opcode == "iter_has_next" and result is not None:
+                state = iterator(operands[0])
+                temps[result] = state.index < len(state.items)
+            elif opcode == "iter_value" and result is not None:
+                state = iterator(operands[0])
+                if state.index >= len(state.items):
+                    raise BackendEquivalenceError("IR iter_value tükenmiş iterator üzerinde çağrılamaz.")
+                temps[result] = state.items[state.index]
+            elif opcode == "iter_advance":
+                state = iterator(operands[0])
+                if state.index >= len(state.items):
+                    raise BackendEquivalenceError("IR iter_advance tükenmiş iterator üzerinde çağrılamaz.")
+                state.index += 1
             elif opcode == "call" and result is not None:
                 flow_name, *argument_names = operands
                 flow = flow_table.get(flow_name)
@@ -302,7 +337,13 @@ def _execute(
         return False, None
 
     run(instructions, local_values=root_values, local_bindings=root_bindings)
-    visible_state = tuple(sorted((name, value) for name, value in root_values.items() if not name.startswith("$internal_")))
+    visible_state = tuple(
+        sorted(
+            (name, value)
+            for name, value in root_values.items()
+            if not name.startswith("$internal_") and not name.startswith("__shn_scope_")
+        )
+    )
     return BackendObservation(state=visible_state, output=tuple(output))
 
 
