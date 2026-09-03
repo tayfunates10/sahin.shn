@@ -57,3 +57,24 @@ def test_iter_advance_must_not_produce_a_result(builder, error_type):
 
     with pytest.raises(error_type, match="iter_advance"):
         builder(program)
+
+
+@pytest.mark.parametrize("builder", [build_wasm_plan, build_native_plan])
+def test_iterator_origin_is_validated_by_cfg_not_lexical_instruction_order(builder):
+    program = IRProgram(
+        version=1,
+        instructions=(
+            IRInstruction("const", ("tam:1",), "%source"),
+            IRInstruction("jump", ("begin",)),
+            IRInstruction("label", ("consume",)),
+            IRInstruction("iter_has_next", ("%iterator",), "%has_next"),
+            IRInstruction("branch", ("%has_next", "done", "done")),
+            IRInstruction("label", ("begin",)),
+            IRInstruction("iter_begin", ("%source",), "%iterator"),
+            IRInstruction("jump", ("consume",)),
+            IRInstruction("label", ("done",)),
+        ),
+    )
+
+    plan = builder(program)
+    assert plan.instructions == program.instructions
