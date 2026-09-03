@@ -106,6 +106,31 @@ def _binary(operator: str, left: object, right: object) -> object:
     return operation()
 
 
+def _pipeline(stage: str, value: object, argument: object = None, *, has_argument: bool = False) -> object:
+    if stage == "ilk":
+        count = argument if has_argument else 1
+        if not isinstance(count, int) or count < 0:
+            raise BackendEquivalenceError("'ilk' aşamasının miktarı sıfır veya pozitif tam sayı olmalı.")
+        return tuple(value)[:count]
+    if stage == "sırala":
+        key = argument if has_argument else None
+        items = tuple(value)
+        if key is None:
+            return tuple(sorted(items))
+        if isinstance(key, str):
+            return tuple(sorted(items, key=lambda item: _member(item, key)))
+        raise BackendEquivalenceError("'sırala' anahtarı yazı olmalı.")
+    if stage == "seç":
+        selector = argument if has_argument else True
+        items = tuple(value)
+        if isinstance(selector, bool):
+            return items if selector else ()
+        if isinstance(selector, str):
+            return tuple(item for item in items if bool(_member(item, selector)))
+        raise BackendEquivalenceError("'seç' aşaması evet/hayır veya alan adı bekliyor.")
+    raise BackendEquivalenceError(f"Bilinmeyen pipeline aşaması: {stage!r}")
+
+
 def _execute(
     instructions: Sequence[IRInstruction],
     flows: Sequence[IRFlow] = (),
@@ -193,33 +218,20 @@ def _execute(
                 return True, temp(operands[0])
             if opcode == "const" and result is not None:
                 temps[result] = _decode_literal(operands[0])
-                pc += 1
-                continue
-            if opcode == "load" and result is not None:
+            elif opcode == "load" and result is not None:
                 temps[result] = lookup(operands[0])
-                pc += 1
-                continue
-            if opcode == "unary" and result is not None:
+            elif opcode == "unary" and result is not None:
                 operator, operand_name = operands
                 value = temp(operand_name)
-                operations = {
-                    "değil": lambda: not bool(value),
-                    "!": lambda: not bool(value),
-                    "-": lambda: -value,
-                    "+": lambda: +value,
-                }
+                operations = {"değil": lambda: not bool(value), "!": lambda: not bool(value), "-": lambda: -value, "+": lambda: +value}
                 operation = operations.get(operator)
                 if operation is None:
                     raise BackendEquivalenceError(f"Bilinmeyen IR tekli işlemi: {operator}")
                 temps[result] = operation()
-                pc += 1
-                continue
-            if opcode == "binary" and result is not None:
+            elif opcode == "binary" and result is not None:
                 operator, left_name, right_name = operands
                 temps[result] = _binary(operator, temp(left_name), temp(right_name))
-                pc += 1
-                continue
-            if opcode == "predicate" and result is not None:
+            elif opcode == "predicate" and result is not None:
                 predicate, operand_name = operands
                 value = temp(operand_name)
                 if predicate == "yok":
@@ -230,14 +242,10 @@ def _execute(
                     temps[result] = not _empty(value)
                 else:
                     raise BackendEquivalenceError(f"Bilinmeyen IR yüklemi: {predicate}")
-                pc += 1
-                continue
-            if opcode == "member" and result is not None:
+            elif opcode == "member" and result is not None:
                 member_name, target_name = operands
                 temps[result] = _member(temp(target_name), member_name)
-                pc += 1
-                continue
-            if opcode == "range" and result is not None:
+            elif opcode == "range" and result is not None:
                 start_name, end_name = operands
                 start = temp(start_name)
                 end = temp(end_name)
@@ -245,9 +253,14 @@ def _execute(
                     raise BackendEquivalenceError("IR range uçları tam sayı olmalıdır.")
                 step = 1 if end >= start else -1
                 temps[result] = tuple(range(start, end + step, step))
-                pc += 1
-                continue
-            if opcode == "call" and result is not None:
+            elif opcode == "pipeline" and result is not None:
+                stage, source_name, *argument_names = operands
+                source_value = temp(source_name)
+                if argument_names:
+                    temps[result] = _pipeline(stage, source_value, temp(argument_names[0]), has_argument=True)
+                else:
+                    temps[result] = _pipeline(stage, source_value)
+            elif opcode == "call" and result is not None:
                 flow_name, *argument_names = operands
                 flow = flow_table.get(flow_name)
                 if flow is None:
@@ -269,39 +282,27 @@ def _execute(
                 if not returned:
                     raise BackendEquivalenceError(f"Akış dönüş üretmeden sonlandı: {flow_name}")
                 temps[result] = value
-                pc += 1
-                continue
-            if opcode == "bind":
+            elif opcode == "bind":
                 name, value_name = operands
                 if name in local_values:
                     raise BackendEquivalenceError(f"IR binding aynı kapsamda yeniden tanımlandı: {name}")
                 local_values[name] = temp(value_name)
                 local_bindings.add(name)
-                pc += 1
-                continue
-            if opcode == "store":
+            elif opcode == "store":
                 name, value_name = operands
                 store(name, temp(value_name))
-                pc += 1
-                continue
-            if opcode == "write":
+            elif opcode == "write":
                 output.append(_format(temp(operands[0])))
-                pc += 1
-                continue
-            raise BackendEquivalenceError(f"Desteklenmeyen IR opcode'u: {opcode}")
+            else:
+                raise BackendEquivalenceError(f"Desteklenmeyen IR opcode'u: {opcode}")
+            pc += 1
 
         if expect_return:
             return False, None
         return False, None
 
-    run(
-        instructions,
-        local_values=root_values,
-        local_bindings=root_bindings,
-    )
-    visible_state = tuple(
-        sorted((name, value) for name, value in root_values.items() if not name.startswith("$internal_"))
-    )
+    run(instructions, local_values=root_values, local_bindings=root_bindings)
+    visible_state = tuple(sorted((name, value) for name, value in root_values.items() if not name.startswith("$internal_")))
     return BackendObservation(state=visible_state, output=tuple(output))
 
 
@@ -312,10 +313,7 @@ def compare_source(source: str) -> EquivalenceReport:
     reference_output: list[str] = []
     reference_runtime = Runtime(reference_output.append)
     reference_state = reference_runtime.execute(parse(tokenize(source)))
-    flow_source_names = {
-        flow.name.removeprefix("@akış:")
-        for flow in program.flows
-    }
+    flow_source_names = {flow.name.removeprefix("@akış:") for flow in program.flows}
     reference = BackendObservation(
         state=tuple(sorted((name, value) for name, value in reference_state.items() if name not in flow_source_names)),
         output=tuple(reference_output),
