@@ -158,8 +158,7 @@ class _Lowerer:
     def lower(self, program: Program) -> IRProgram:
         if not self._in_flow:
             self._predeclare_flows(program)
-        for statement in program.statements:
-            self._statement(statement)
+        self._lower_block(program.statements)
         return IRProgram(version=1, instructions=tuple(self.instructions), flows=tuple(self.flows))
 
     def _predeclare_flows(self, program: Program) -> None:
@@ -213,6 +212,32 @@ class _Lowerer:
     def _emit(self, opcode: str, operands: tuple[str, ...] = (), result: str | None = None) -> None:
         self.instructions.append(IRInstruction(opcode, operands, result))
 
+    def _statement_falls_through(self, statement) -> bool:
+        if isinstance(statement, Command):
+            if statement.name == "ver" and self._in_flow:
+                return False
+            if statement.name == "bitir" and self._loop_end_labels:
+                return False
+            return True
+        if isinstance(statement, IfStatement):
+            if not statement.else_body:
+                return True
+            return self._block_falls_through(statement.body) or self._block_falls_through(statement.else_body)
+        return True
+
+    def _block_falls_through(self, statements) -> bool:
+        for statement in statements:
+            if not self._statement_falls_through(statement):
+                return False
+        return True
+
+    def _lower_block(self, statements) -> bool:
+        for statement in statements:
+            self._statement(statement)
+            if not self._statement_falls_through(statement):
+                return False
+        return True
+
     def _lower_flow(self, declaration: Declaration) -> None:
         if not declaration.name:
             raise IRLoweringError("İsimsiz `akış` tanımı IR ABI'ına indirgenemez.")
@@ -235,8 +260,7 @@ class _Lowerer:
                 value = child._expression(declaration.inline_expression)
                 child._emit("return", (value,))
             else:
-                for statement in declaration.body:
-                    child._statement(statement)
+                child._lower_block(declaration.body)
 
             if _can_fall_through(child.instructions):
                 implicit = child._temp()
@@ -305,20 +329,20 @@ class _Lowerer:
             self._emit("label", (true_label,))
             self._push_scope()
             try:
-                for child in statement.body:
-                    self._statement(child)
+                true_falls_through = self._lower_block(statement.body)
             finally:
                 self._pop_scope()
-            self._emit("jump", (end_label,))
+            if true_falls_through:
+                self._emit("jump", (end_label,))
 
             self._emit("label", (false_label,))
             self._push_scope()
             try:
-                for child in statement.else_body:
-                    self._statement(child)
+                false_falls_through = self._lower_block(statement.else_body)
             finally:
                 self._pop_scope()
-            self._emit("jump", (end_label,))
+            if false_falls_through:
+                self._emit("jump", (end_label,))
 
             self._emit("label", (end_label,))
             return
@@ -340,14 +364,14 @@ class _Lowerer:
             try:
                 loop_name = self._declare_name(statement.name)
                 self._emit("store", (loop_name, item))
-                for child in statement.body:
-                    self._statement(child)
+                body_falls_through = self._lower_block(statement.body)
             finally:
                 self._loop_end_labels.pop()
                 self._pop_scope()
 
-            self._emit("iter_advance", (iterator,))
-            self._emit("jump", (check_label,))
+            if body_falls_through:
+                self._emit("iter_advance", (iterator,))
+                self._emit("jump", (check_label,))
             self._emit("label", (end_label,))
             return
         if isinstance(statement, ExpressionStatement):
