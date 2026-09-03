@@ -26,13 +26,13 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `Write` | ✅ | `write` |
 | `ExpressionStatement` | ⏳ | Semantik geçerliliği açıkça modellenene kadar fail-closed |
 | `FieldDeclaration` | ⏳ | Henüz lowering sözleşmesi yok |
-| `Command` | ⏳ | Host/capability etkileri açık ABI olmadan açılmamalı |
+| `Command` | 🚧 | `yaz`/`bildir` yalnız referans runtime ile aynı ilk-argüman semantiğiyle doğrulandı; host/capability etkili diğer komutlar fail-closed |
 | `Declaration` (`akış`) | ✅ | `IRFlow`; parametre/type metadata, lexical captures, `return`, recursion için predeclaration ve backend flow doğrulaması exact-head CI ile doğrulandı |
 | `Declaration` (diğer) | ⏳ | Kendi runtime/backend ABI sözleşmesi olmadan fail-closed |
 | `IfStatement` | ✅ | Deterministik `branch/label/jump`, lexical scope ve control-flow equivalence doğrulandı |
 | `ForEach` | ✅ | Iterator IR, lexical loop scope, terminator-aware `bitir`, WASM/native origin/use-def doğrulaması ve referans runtime ↔ backend equivalence exact-head CI ile doğrulandı |
-| `MatchStatement` | 🚧 | Sıradaki aktif dilim: pattern değerlendirme sırası, first-match control-flow ve lexical case scope açık IR sözleşmesiyle tanımlanacak |
-| `TryStatement` | ⏳ | Error/exception control-flow modeli eksik |
+| `MatchStatement` | ✅ | Subject tek değerlendirme, kaynak sıralı pattern karşılaştırması, first-match `binary ==` + `branch/label/jump` ve WASM/native equivalence exact-head CI ile doğrulandı |
+| `TryStatement` | 🚧 | Sıradaki aktif dilim: hata control-flow, error binding scope ve başarılı/hatalı yollar için açık fail-closed ABI tanımlanacak |
 
 ## Control-flow ve çağrı sözleşmesi
 
@@ -47,6 +47,8 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 - ✅ `Pipeline` stage zinciri ve `ilk`/`sırala`/`seç` semantiği iki adapter planıyla eşdeğerlik testlerinden geçti.
 - ✅ `ForEach` iterable kaynağını tek kez snapshot ediyor; iterator state, lexical loop scope, ters aralık sırası ve `bitir` semantiği WASM/native plan equivalence ile doğrulandı.
 - ✅ Iterator consumer opcode'ları yalnız `iter_begin` tarafından üretilmiş handle üzerinde kabul ediliyor; malformed ve use-before-definition yolları fail-closed reddediliyor.
+- ✅ `MatchStatement` subject'i bir kez değerlendiriyor; patternler kaynak sırasıyla yalnız erişilen path üzerinde değerlendirilip ilk eşleşmede end label'ına ilerliyor.
+- ✅ Match case `yaz`/`bildir` komutları referans runtime gibi yalnız ilk argümanı değerlendiriyor; diğer case Command türleri fail-closed kalıyor.
 - ✅ Adapter entegrasyonu herhangi bir yeni capability/import açmıyor.
 
 ## Kalan kabul sırası
@@ -60,8 +62,9 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 7. ✅ `RangeExpression` lowering + backend/equivalence kalite kapısını tamamla.
 8. ✅ `Pipeline` lowering + backend/equivalence kalite kapısını tamamla.
 9. ✅ `ForEach` IR lowering/control-flow + WASM/native adapter/equivalence kalite kapısını tamamla.
-10. 🚧 `MatchStatement` için first-match/pattern control-flow modelini küçük ayrı PR ile ekle; ardından `TryStatement` ve kalan statement düğümlerini kapat.
-11. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
+10. ✅ `MatchStatement` subject-once/first-match control-flow + backend equivalence kalite kapısını tamamla.
+11. 🚧 `TryStatement` hata control-flow/error-binding sözleşmesini küçük ayrı PR ile ekle; ardından kalan statement/Command/Declaration düğümlerini kapat.
+12. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
 
 ## Kalite ilkeleri
 
@@ -71,4 +74,5 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 - Unknown opcode/version, malformed instruction, use-before-definition ve duplicate-temp fail-closed kalır.
 - `Call` yalnız doğrulanmış `IRFlow` hedefi, doğru arity ve doğrulanmış lexical capture/return ABI ile kabul edilir.
 - Iterator consumer opcode'ları yalnız doğrulanmış `iter_begin` handle'ı ve CFG definite-definition kanıtı ile kabul edilir.
+- Match pattern sırası ve first-match davranışı backend optimizasyonlarıyla değiştirilemez.
 - Benchmark veya performans hedefi semantik eşdeğerlik kontrolünü devre dışı bırakamaz.
