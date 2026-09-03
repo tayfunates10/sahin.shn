@@ -13,6 +13,7 @@ from .ast_nodes import (
     Declaration,
     Expression,
     ExpressionStatement,
+    ForEach,
     IfStatement,
     Literal,
     Member,
@@ -152,6 +153,7 @@ class _Lowerer:
         self._in_flow = in_flow
         self._capture_candidates = set((initial_names or {}).values())
         self._captures: set[str] = set()
+        self._loop_end_labels: list[str] = []
 
     def lower(self, program: Program) -> IRProgram:
         if not self._in_flow:
@@ -273,6 +275,9 @@ class _Lowerer:
                     self._emit("const", (self._literal(None),), value)
                 self._emit("return", (value,))
                 return
+            if statement.name == "bitir" and self._loop_end_labels:
+                self._emit("jump", (self._loop_end_labels[-1],))
+                return
             raise IRLoweringError(
                 f"Aşama 10 IR v1 henüz {statement.name!r} Command düğümünü bu kapsamda desteklemiyor."
             )
@@ -315,6 +320,34 @@ class _Lowerer:
                 self._pop_scope()
             self._emit("jump", (end_label,))
 
+            self._emit("label", (end_label,))
+            return
+        if isinstance(statement, ForEach):
+            iterable = self._expression(statement.iterable)
+            iterator = self._temp()
+            self._emit("iter_begin", (iterable,), iterator)
+            check_label, body_label, end_label = self._labels("foreach", "check", "body", "end")
+            self._emit("label", (check_label,))
+            has_next = self._temp()
+            self._emit("iter_has_next", (iterator,), has_next)
+            self._emit("branch", (has_next, body_label, end_label))
+            self._emit("label", (body_label,))
+            item = self._temp()
+            self._emit("iter_value", (iterator,), item)
+
+            self._push_scope()
+            self._loop_end_labels.append(end_label)
+            try:
+                loop_name = self._declare_name(statement.name)
+                self._emit("store", (loop_name, item))
+                for child in statement.body:
+                    self._statement(child)
+            finally:
+                self._loop_end_labels.pop()
+                self._pop_scope()
+
+            self._emit("iter_advance", (iterator,))
+            self._emit("jump", (check_label,))
             self._emit("label", (end_label,))
             return
         if isinstance(statement, ExpressionStatement):
