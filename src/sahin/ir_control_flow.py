@@ -240,6 +240,16 @@ def validate_control_flow(
             for target in target_indices:
                 predecessors[target].add(source)
 
+        for guard_index, handler, _ in try_regions:
+            handler_index = label_indices[handler]
+            normal_predecessors = predecessors[handler_index] - {guard_index}
+            if normal_predecessors:
+                sources = ", ".join(str(index) for index in sorted(normal_predecessors))
+                raise IRControlFlowError(
+                    f"Hata handler etiketi yalnız try_guard exceptional kenarından erişilebilir olmalıdır: {handler} "
+                    f"(normal predecessor instruction: {sources})."
+                )
+
         in_temps: list[set[str] | None] = [None] * instruction_count
         out_temps: list[set[str] | None] = [None] * instruction_count
         in_names: list[set[str] | None] = [None] * instruction_count
