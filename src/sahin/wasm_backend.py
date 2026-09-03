@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import json
 
 from .ir import IRFlow, IRInstruction, IRProgram, lower_source
-from .range_backend_validation import validate_backend_program_with_range
+from .pipeline_backend_validation import validate_backend_program_with_pipeline
 
 
 class WasmBackendError(ValueError):
@@ -34,7 +34,7 @@ class WasmAdapterPlan:
 
 def build_wasm_plan(program: IRProgram) -> WasmAdapterPlan:
     """IR v1'i capability importu açmadan deterministik WASM adapter planına çevirir."""
-    validate_backend_program_with_range(
+    validate_backend_program_with_pipeline(
         program,
         error_type=WasmBackendError,
         backend_name="WASM",
