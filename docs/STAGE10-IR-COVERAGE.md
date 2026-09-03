@@ -30,7 +30,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `Declaration` (`akış`) | ✅ | `IRFlow`; parametre/type metadata, lexical captures, `return`, recursion için predeclaration ve backend flow doğrulaması exact-head CI ile doğrulandı |
 | `Declaration` (diğer) | ⏳ | Kendi runtime/backend ABI sözleşmesi olmadan fail-closed |
 | `IfStatement` | ✅ | Deterministik `branch/label/jump`, lexical scope ve control-flow equivalence doğrulandı |
-| `ForEach` | 🚧 | Sıradaki aktif dilim; iteration/control-flow modeli açıkça tanımlanacak |
+| `ForEach` | 🚧 | IR lowering + iterator/control-flow (`iter_begin/has_next/value/advance`), lexical loop scope ve `bitir` terminator davranışı exact-head CI ile doğrulandı; WASM/native + equivalence entegrasyonu sıradaki kapı |
 | `MatchStatement` | ⏳ | Pattern/control-flow modeli eksik |
 | `TryStatement` | ⏳ | Error/exception control-flow modeli eksik |
 
@@ -45,6 +45,8 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 - ✅ Referans runtime ↔ WASM/native plan equivalence yürütücüsü bağımsız çağrı frame'i, parametre aktarımı, dönüş değeri ve lexical capture okuma/yazma semantiğini doğruluyor.
 - ✅ `RangeExpression` için inclusive ileri/geri tuple semantiği iki adapter planıyla eşdeğerlik testlerinden geçti.
 - ✅ `Pipeline` stage zinciri ve `ilk`/`sırala`/`seç` semantiği iki adapter planıyla eşdeğerlik testlerinden geçti.
+- ✅ `ForEach` iterable kaynağını tek kez değerlendiriyor; iterator state ve lexical loop scope açık IR ile taşınıyor, `bitir` en iç loop end label'ına atlıyor ve terminator sonrası ölü latch/statement üretilmiyor.
+- 🚧 `ForEach` iterator opcode'ları WASM/native adapter ve runtime equivalence katmanında henüz açılmadı; bu sınır fail-closed kalıyor.
 - ✅ Adapter entegrasyonu herhangi bir yeni capability/import açmıyor.
 
 ## Kalan kabul sırası
@@ -57,7 +59,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 6. ✅ `Predicate`, `Member`, `Call` + `akış` `Declaration` ABI ve backend/equivalence entegrasyonlarını tamamla.
 7. ✅ `RangeExpression` lowering + backend/equivalence kalite kapısını tamamla.
 8. ✅ `Pipeline` lowering + backend/equivalence kalite kapısını tamamla.
-9. 🚧 `ForEach` ile başlayarak kalan statement düğümlerini küçük ayrı PR'larla ekle; capability gerektiren düğümleri açık ABI olmadan destekleme.
+9. 🚧 `ForEach` IR lowering/control-flow tamamlandı; WASM/native adapter + equivalence kapısını kapat, ardından `MatchStatement`, `TryStatement` ve kalan statement düğümlerini küçük ayrı PR'larla ekle.
 10. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
 
 ## Kalite ilkeleri
