@@ -11,7 +11,11 @@ class IRControlFlowError(ValueError):
 
 
 CONTROL_FLOW_OPCODES = frozenset({"label", "jump", "branch", "return"})
-NON_CONTROL_FLOW_OPCODES = frozenset({"const", "load", "unary", "binary", "predicate", "member", "call", "store", "bind", "write"})
+NON_CONTROL_FLOW_OPCODES = frozenset({
+    "const", "load", "unary", "binary", "predicate", "member", "call",
+    "store", "bind", "write", "range", "pipeline",
+    "iter_begin", "iter_has_next", "iter_value", "iter_advance",
+})
 KNOWN_OPCODES = CONTROL_FLOW_OPCODES | NON_CONTROL_FLOW_OPCODES
 
 
@@ -31,17 +35,40 @@ def _validate_label_name(name: str, instruction_index: int) -> None:
 def _temp_uses(instruction: IRInstruction) -> tuple[str, ...]:
     if instruction.opcode in {"unary", "predicate", "member"}:
         return instruction.operands[1:2]
-    if instruction.opcode == "binary":
-        return instruction.operands[1:3]
-    if instruction.opcode == "call":
+    if instruction.opcode in {"binary", "range"}:
+        return instruction.operands[1:3] if instruction.opcode == "binary" else instruction.operands[0:2]
+    if instruction.opcode in {"call", "pipeline"}:
         return instruction.operands[1:]
     if instruction.opcode in {"store", "bind"}:
         return instruction.operands[1:2]
-    if instruction.opcode in {"write", "return"}:
+    if instruction.opcode in {"write", "return", "iter_begin", "iter_has_next", "iter_value", "iter_advance"}:
         return instruction.operands[0:1]
     if instruction.opcode == "branch":
         return instruction.operands[0:1]
     return ()
+
+
+def _validate_iterator_instruction(instruction: IRInstruction, index: int) -> None:
+    opcode = instruction.opcode
+    if opcode not in {"iter_begin", "iter_has_next", "iter_value", "iter_advance"}:
+        return
+    if len(instruction.operands) != 1:
+        raise IRControlFlowError(
+            f"{opcode} tam olarak 1 geçici iterator operandı almalıdır (instruction {index})."
+        )
+    if not instruction.operands[0].startswith("%"):
+        raise IRControlFlowError(
+            f"{opcode} geçici bir operand bekler: {instruction.operands[0]} (instruction {index})."
+        )
+    if opcode == "iter_advance":
+        if instruction.result is not None:
+            raise IRControlFlowError(
+                f"iter_advance sonuç üretmemelidir (instruction {index})."
+            )
+    elif instruction.result is None:
+        raise IRControlFlowError(
+            f"{opcode} geçici bir sonuç üretmelidir (instruction {index})."
+        )
 
 
 def validate_control_flow(
@@ -69,6 +96,8 @@ def validate_control_flow(
             raise IRControlFlowError(
                 f"Bilinmeyen IR opcode fail-closed reddedildi: {opcode!r} (instruction {index})."
             )
+
+        _validate_iterator_instruction(instruction, index)
 
         if opcode == "label":
             if len(instruction.operands) != 1 or instruction.result is not None:
