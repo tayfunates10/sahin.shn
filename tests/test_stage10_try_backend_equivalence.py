@@ -1,5 +1,7 @@
 from sahin.try_backend_equivalence import compare_try_source
 
+# Bu dosya top-level ve flow-local gözlemlenebilir try/error payload ABI regresyonlarını kilitler.
+
 
 def test_try_success_path_matches_reference_runtime_on_wasm_and_native():
     report = compare_try_source(
