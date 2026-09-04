@@ -58,3 +58,23 @@ olmazsa hata
     assert "Şahin çalışma hatası" in rendered
     assert "satır 2" in rendered
     assert report.reference_output == report.wasm_output == report.native_output
+
+
+def test_flow_local_try_observable_error_payload_preserves_flow_provenance_across_backends():
+    report = compare_try_source(
+        '''akış güvenli_böl
+    dene
+        yaz 1 / 0
+    olmazsa hata
+        yaz hata
+    ver yok
+sonuç = güvenli_böl()
+'''
+    )
+
+    assert report.equivalent
+    assert len(report.reference_output) == 1
+    rendered = report.reference_output[0]
+    assert "Şahin çalışma hatası" in rendered
+    assert "satır 3" in rendered
+    assert report.reference_output == report.wasm_output == report.native_output
