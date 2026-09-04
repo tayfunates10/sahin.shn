@@ -19,6 +19,10 @@ class TryBackendEquivalenceError(ValueError):
     """Try/error-region adapter semantiği güvenle yürütülemediğinde oluşur."""
 
 
+class _PipelinePayloadError(ValueError):
+    """Referans runtime'ın kaynak konumlu RuntimeErrorSHN ürettiği pipeline doğrulama hatası."""
+
+
 @dataclass(frozen=True, slots=True)
 class TryEquivalenceReport:
     reference_output: tuple[str, ...]
@@ -65,6 +69,39 @@ def _format(value: object) -> str:
     if isinstance(value, Decimal):
         return format(value, "f")
     return str(value)
+
+
+def _pipeline_member(target: object, name: str) -> object:
+    if isinstance(target, dict) and name in target:
+        return target[name]
+    if name == "uzunluk" and isinstance(target, (str, tuple, list, dict)):
+        return len(target)
+    raise KeyError(name)
+
+
+def _pipeline_stage(stage: str, value: object, argument: object = None, *, has_argument: bool = False) -> object:
+    if stage == "ilk":
+        count = argument if has_argument else 1
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            raise _PipelinePayloadError("'ilk' aşamasının miktarı sıfır veya pozitif tam sayı olmalı.")
+        return tuple(value)[:count]
+    if stage == "sırala":
+        key = argument if has_argument else None
+        items = tuple(value)
+        if key is None:
+            return tuple(sorted(items))
+        if isinstance(key, str):
+            return tuple(sorted(items, key=lambda item: _pipeline_member(item, key)))
+        raise _PipelinePayloadError("'sırala' anahtarı yazı olmalı.")
+    if stage == "seç":
+        selector = argument if has_argument else True
+        items = tuple(value)
+        if isinstance(selector, bool):
+            return items if selector else ()
+        if isinstance(selector, str):
+            return tuple(item for item in items if bool(_pipeline_member(item, selector)))
+        raise _PipelinePayloadError("'seç' aşaması evet/hayır veya alan adı bekliyor.")
+    raise TryBackendEquivalenceError(f"Bilinmeyen pipeline aşaması: {stage!r}")
 
 
 def _regions(instructions: Sequence[IRInstruction], labels: dict[str, int]) -> tuple[tuple[int, int, int], ...]:
@@ -139,6 +176,8 @@ def _execute(
                 "'..' aralığının iki ucu tam sayı olmalı.",
                 location=location,
             )
+        if opcode == "pipeline" and isinstance(exc, _PipelinePayloadError):
+            return RuntimeErrorSHN(str(exc), location=location)
         raise TryBackendEquivalenceError(
             f"Source provenance mevcut olsa da {opcode!r} hata payload ABI'ı henüz desteklenmiyor."
         ) from exc
@@ -305,6 +344,13 @@ def _execute(
                         raise TypeError("'..' aralığının iki ucu tam sayı olmalı.")
                     step = 1 if end >= start else -1
                     temps[result] = tuple(range(start, end + step, step))
+                elif opcode == "pipeline" and result is not None:
+                    stage, source_name, *argument_names = operands
+                    source_value = temp(source_name)
+                    if argument_names:
+                        temps[result] = _pipeline_stage(stage, source_value, temp(argument_names[0]), has_argument=True)
+                    else:
+                        temps[result] = _pipeline_stage(stage, source_value)
                 elif opcode == "call" and result is not None:
                     flow_name, *argument_names = operands
                     flow = flow_table.get(flow_name)
@@ -337,7 +383,19 @@ def _execute(
                     temps[result] = value
                 else:
                     raise TryBackendEquivalenceError(f"Try equivalence diliminde desteklenmeyen opcode: {opcode}")
+            except _PipelinePayloadError as exc:
+                target = exceptional_target(pc)
+                error = runtime_error_for(pc, scope, opcode, operands, exc)
+                if target is None:
+                    raise error from exc
+                pending_error = error
+                pc = target
+                continue
             except (ArithmeticError, TypeError, KeyError) as exc:
+                if opcode == "pipeline":
+                    raise TryBackendEquivalenceError(
+                        "Pipeline ham yürütme hatası referans runtime RuntimeErrorSHN sözleşmesiyle kanıtlanmadı."
+                    ) from exc
                 target = exceptional_target(pc)
                 error = runtime_error_for(pc, scope, opcode, operands, exc)
                 if target is None:
