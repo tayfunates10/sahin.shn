@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import json
 
 from .ir import IRFlow, IRInstruction, IRProgram, lower_source
-from .source_provenance import SourceProvenance, build_binary_source_provenance
+from .source_provenance import SourceProvenance, build_source_provenance
 from .try_backend_validation import validate_backend_program_with_try
 
 
@@ -62,5 +62,5 @@ def build_wasm_plan_from_source(source: str) -> WasmAdapterPlan:
         imports=plan.imports,
         instructions=plan.instructions,
         flows=plan.flows,
-        source_provenance=build_binary_source_provenance(source, program),
+        source_provenance=build_source_provenance(source, program),
     )

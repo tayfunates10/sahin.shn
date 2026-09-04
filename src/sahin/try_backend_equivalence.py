@@ -136,6 +136,23 @@ def _execute(
             f"Source provenance mevcut olsa da {opcode!r} hata payload ABI'ı henüz desteklenmiyor."
         ) from exc
 
+    def call_frame_for(
+        pc: int,
+        scope: str | None,
+        flow: IRFlow,
+        exc: RuntimeErrorSHN,
+    ) -> RuntimeErrorSHN:
+        provenance = provenance_by_scope.get((scope, pc))
+        if provenance is None or provenance.kind != "call":
+            scope_name = scope or "<ana>"
+            raise TryBackendEquivalenceError(
+                "Flow dışına taşan RuntimeErrorSHN için doğrulanmış call-site provenance bulunamadı "
+                f"(kapsam {scope_name}, instruction {pc})."
+            ) from exc
+        location = SourceLocation(provenance.line, provenance.column)
+        frame_name = flow.name.removeprefix("@akış:") or "<akış>"
+        return exc.with_frame(frame_name, location)
+
     def run(
         sequence: Sequence[IRInstruction],
         *,
@@ -286,12 +303,13 @@ def _execute(
                             expect_return=True,
                         )
                     except RuntimeErrorSHN as exc:
-                        # Call-site provenance ABI henüz tanımlı değil. Kaynak runtime
-                        # kaçan flow hatasına call frame eklediğinden bunu sessizce
-                        # eksik/yanlış payload olarak kabul etmiyoruz.
-                        raise TryBackendEquivalenceError(
-                            "Flow dışına taşan RuntimeErrorSHN için call-site provenance ABI henüz doğrulanmadı."
-                        ) from exc
+                        escaped = call_frame_for(pc, scope, flow, exc)
+                        target = exceptional_target(pc)
+                        if target is None:
+                            raise escaped from exc
+                        pending_error = escaped
+                        pc = target
+                        continue
                     if not returned:
                         raise TryBackendEquivalenceError(f"Akış dönüş üretmeden sonlandı: {flow_name}")
                     temps[result] = value
