@@ -1,6 +1,4 @@
-import pytest
-
-from sahin.try_backend_equivalence import TryBackendEquivalenceError, compare_try_source
+from sahin.try_backend_equivalence import compare_try_source
 
 
 def test_try_success_path_matches_reference_runtime_on_wasm_and_native():
@@ -45,15 +43,18 @@ olmazsa dış_hata
     assert report.equivalent
 
 
-def test_observable_error_payload_fails_closed_until_source_provenance_abi_exists():
-    with pytest.raises(
-        TryBackendEquivalenceError,
-        match="kaynak-konum provenance ABI olmadan gözlemlenemez",
-    ):
-        compare_try_source(
-            '''dene
+def test_observable_binary_error_payload_preserves_source_location_across_backends():
+    report = compare_try_source(
+        '''dene
     yaz 1 / 0
 olmazsa hata
     yaz hata
 '''
-        )
+    )
+
+    assert report.equivalent
+    assert len(report.reference_output) == 1
+    rendered = report.reference_output[0]
+    assert "Şahin çalışma hatası" in rendered
+    assert "satır 2" in rendered
+    assert report.reference_output == report.wasm_output == report.native_output
