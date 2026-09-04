@@ -250,11 +250,17 @@ class Runtime:
             value = self._evaluate(expression.operand, frame)
             if expression.operator in {"değil", "!"}:
                 return not self._truthy(value)
-            if expression.operator == "-":
-                return -value
-            if expression.operator == "+":
-                return +value
-            raise self._error(f"Bilinmeyen tekli işlem: {expression.operator}", expression.location)
+            operations = {
+                "-": lambda: -value,
+                "+": lambda: +value,
+            }
+            operation = operations.get(expression.operator)
+            if operation is None:
+                raise self._error(f"Bilinmeyen tekli işlem: {expression.operator}", expression.location)
+            try:
+                return operation()
+            except (ArithmeticError, TypeError) as exc:
+                raise self._error(f"{expression.operator!r} işlemi uygulanamadı: {exc}", expression.location) from exc
         if isinstance(expression, Binary):
             if expression.operator == "ve":
                 left = self._evaluate(expression.left, frame)
