@@ -192,4 +192,4 @@ def test_ir_v1_lowers_semantically_valid_expression_statement_and_discards_resul
 
 def test_ir_v1_rejects_semantically_invalid_expression_statement_before_lowering():
     with pytest.raises(IRLoweringError, match="Semantik doğrulama başarısız"):
-        lower_source("bilinmeyen\n")
+        lower_source("bilinmeyen()\n")
