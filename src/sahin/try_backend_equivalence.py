@@ -5,12 +5,14 @@ from decimal import Decimal
 import json
 from typing import Sequence
 
-from .ir import IRInstruction, lower_source
+from .ast_nodes import SourceLocation
+from .ir import IRInstruction
 from .lexer import tokenize
-from .native_backend import build_native_plan
+from .native_backend import build_native_plan_from_source
 from .parser import parse
-from .runtime import Runtime
-from .wasm_backend import build_wasm_plan
+from .runtime import Runtime, RuntimeErrorSHN
+from .source_provenance import SourceProvenance
+from .wasm_backend import build_wasm_plan_from_source
 
 
 class TryBackendEquivalenceError(ValueError):
@@ -48,14 +50,11 @@ def _decode_literal(encoded: str) -> object:
 
 
 def _format(value: object) -> str:
-    # Referans runtime `olmazsa hata` bağında RuntimeErrorSHN nesnesini saklar ve
-    # `yaz hata` çağrısında onun kaynak-konumlu __str__ çıktısını gözlemler. IR v1
-    # instruction'ları henüz bu provenance'ı taşımadığı için ham backend exception'ını
-    # `str()` ile yaklaşıklaştırmak semantik eşdeğerlik iddiasını sahte biçimde yeşile
-    # çevirebilir. Provenance ABI gelene kadar bu gözlem noktası fail-closed kalır.
+    if isinstance(value, RuntimeErrorSHN):
+        return str(value)
     if isinstance(value, BaseException):
         raise TryBackendEquivalenceError(
-            "Yakalanan hata payload'ı kaynak-konum provenance ABI olmadan gözlemlenemez."
+            "Yakalanan hata payload'ı doğrulanmış kaynak provenance olmadan gözlemlenemez."
         )
     if value is True:
         return "evet"
@@ -68,7 +67,10 @@ def _format(value: object) -> str:
     return str(value)
 
 
-def _execute(instructions: Sequence[IRInstruction]) -> tuple[str, ...]:
+def _execute(
+    instructions: Sequence[IRInstruction],
+    source_provenance: Sequence[SourceProvenance] = (),
+) -> tuple[str, ...]:
     labels = {
         item.operands[0]: index
         for index, item in enumerate(instructions)
@@ -88,6 +90,10 @@ def _execute(instructions: Sequence[IRInstruction]) -> tuple[str, ...]:
             raise TryBackendEquivalenceError("Tanımsız try_guard hedefi.") from exc
         regions.append((index + 1, protected_end_index, handler_index))
 
+    provenance_by_index = {item.instruction_index: item for item in source_provenance}
+    if len(provenance_by_index) != len(source_provenance):
+        raise TryBackendEquivalenceError("Yinelenen source provenance instruction indeksi reddedildi.")
+
     temps: dict[str, object] = {}
     values: dict[str, object] = {}
     output: list[str] = []
@@ -105,6 +111,23 @@ def _execute(instructions: Sequence[IRInstruction]) -> tuple[str, ...]:
         start, _end, handler = max(candidates, key=lambda item: item[0])
         del start
         return handler
+
+    def runtime_error_for(pc: int, opcode: str, operands: Sequence[str], exc: BaseException) -> RuntimeErrorSHN:
+        provenance = provenance_by_index.get(pc)
+        if provenance is None or provenance.kind != opcode:
+            raise TryBackendEquivalenceError(
+                f"Yakalanan {opcode} hatası için doğrulanmış source provenance bulunamadı (instruction {pc})."
+            ) from exc
+        location = SourceLocation(provenance.line, provenance.column)
+        if opcode == "binary":
+            operator = operands[0]
+            return RuntimeErrorSHN(
+                f"{operator!r} işlemi uygulanamadı: {exc}",
+                location=location,
+            )
+        raise TryBackendEquivalenceError(
+            f"Source provenance mevcut olsa da {opcode!r} hata payload ABI'ı henüz desteklenmiyor."
+        ) from exc
 
     pc = 0
     step_budget = max(2048, len(instructions) * 128)
@@ -183,15 +206,24 @@ def _execute(instructions: Sequence[IRInstruction]) -> tuple[str, ...]:
                 temps[result] = operations[operator]()
             else:
                 raise TryBackendEquivalenceError(f"Try equivalence diliminde desteklenmeyen opcode: {opcode}")
-        except (ArithmeticError, TypeError, KeyError, TryBackendEquivalenceError) as exc:
+        except (ArithmeticError, TypeError) as exc:
+            target = exceptional_target(pc)
+            if target is None:
+                raise TryBackendEquivalenceError(f"Korunmayan IR hatası: {exc}") from exc
+            pending_error = runtime_error_for(pc, opcode, operands, exc)
+            pc = target
+            continue
+        except (KeyError, TryBackendEquivalenceError) as exc:
             target = exceptional_target(pc)
             if target is None:
                 if isinstance(exc, TryBackendEquivalenceError):
                     raise
                 raise TryBackendEquivalenceError(f"Korunmayan IR hatası: {exc}") from exc
-            pending_error = exc
-            pc = target
-            continue
+            # Internal executor/ABI hataları kullanıcı RuntimeErrorSHN payload'ına
+            # dönüştürülmez. Provenance olmayan hata yolları fail-closed kalır.
+            raise TryBackendEquivalenceError(
+                f"Yakalanan backend yürütme hatası kullanıcı hata payload'ına güvenle dönüştürülemedi: {exc}"
+            ) from exc
 
         pc += 1
 
@@ -201,16 +233,14 @@ def _execute(instructions: Sequence[IRInstruction]) -> tuple[str, ...]:
 
 
 def compare_try_source(source: str) -> TryEquivalenceReport:
-    """Try başarı ve hata yollarını referans runtime ile WASM/native planlarında karşılaştırır."""
-    program = lower_source(source)
-
+    """Try başarı ve hata yollarını referans runtime ile provenance taşıyan WASM/native planlarında karşılaştırır."""
     reference_output: list[str] = []
     Runtime(reference_output.append).execute(parse(tokenize(source)))
 
-    wasm = build_wasm_plan(program)
-    native = build_native_plan(program)
+    wasm = build_wasm_plan_from_source(source)
+    native = build_native_plan_from_source(source)
     return TryEquivalenceReport(
         reference_output=tuple(reference_output),
-        wasm_output=_execute(wasm.instructions),
-        native_output=_execute(native.instructions),
+        wasm_output=_execute(wasm.instructions, wasm.source_provenance),
+        native_output=_execute(native.instructions, native.source_provenance),
     )

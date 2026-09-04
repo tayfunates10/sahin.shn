@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import json
 
 from .ir import IRFlow, IRInstruction, IRProgram, lower_source
+from .source_provenance import SourceProvenance, build_binary_source_provenance
 from .try_backend_validation import validate_backend_program_with_try
 
 
@@ -19,6 +20,7 @@ class NativeAdapterPlan:
     capabilities: tuple[str, ...]
     instructions: tuple[IRInstruction, ...]
     flows: tuple[IRFlow, ...] = ()
+    source_provenance: tuple[SourceProvenance, ...] = ()
 
     def canonical(self) -> str:
         payload = {
@@ -30,6 +32,8 @@ class NativeAdapterPlan:
         }
         if self.flows:
             payload["flows"] = [json.loads(flow.canonical()) for flow in self.flows]
+        if self.source_provenance:
+            payload["source_provenance"] = [json.loads(item.canonical()) for item in self.source_provenance]
         return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
@@ -53,5 +57,15 @@ def build_native_plan(program: IRProgram, *, target: str = "native-sahin-safe") 
 
 
 def build_native_plan_from_source(source: str) -> NativeAdapterPlan:
-    """Gerçek frontend → Şahin IR → güvenli native adapter sınırını çalıştırır."""
-    return build_native_plan(lower_source(source))
+    """Gerçek frontend → Şahin IR → güvenli native adapter + kaynak provenance planını üretir."""
+    program = lower_source(source)
+    plan = build_native_plan(program)
+    return NativeAdapterPlan(
+        ir_version=plan.ir_version,
+        adapter_version=plan.adapter_version,
+        target=plan.target,
+        capabilities=plan.capabilities,
+        instructions=plan.instructions,
+        flows=plan.flows,
+        source_provenance=build_binary_source_provenance(source, program),
+    )
