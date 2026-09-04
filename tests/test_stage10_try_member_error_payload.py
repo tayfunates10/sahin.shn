@@ -15,7 +15,7 @@ def test_top_level_member_instruction_has_source_provenance_without_widening_cap
     assert len(native_members) == 1
     assert wasm_members[0] == native_members[0]
     assert wasm_members[0].flow_name is None
-    assert (wasm_members[0].line, wasm_members[0].column) == (1, 5)
+    assert (wasm_members[0].line, wasm_members[0].column) == (1, 13)
     assert wasm.imports == ()
     assert native.capabilities == ()
 
@@ -34,7 +34,7 @@ yaz oku("Şahin")
     )
 
     assert report.equivalent
-    assert "Şahin çalışma hatası (satır 3, sütun 13)" in report.reference_output[0]
+    assert "Şahin çalışma hatası (satır 3, sütun 19)" in report.reference_output[0]
     assert "'bilinmeyen' üyesi bulunamadı." in report.reference_output[0]
     assert report.reference_output[-1] == "0"
 
