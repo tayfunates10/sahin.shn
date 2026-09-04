@@ -173,7 +173,7 @@ Standart kütüphane sözleşmesi: [`docs/STANDART-KUTUPHANE.md`](docs/STANDART-
 - malformed IR, unknown version/opcode, use-before-definition, duplicate-temp ve capability yüzeyi için property/security regression paketi
 - bu ara kapıların Python 3.11/3.12/3.13 compile + test + gerçek `.shn` smoke kalite koşuları yeşil
 
-Aşama 10 henüz tamamlanmış değildir. Mevcut IR v1 kapsamındaki `TryStatement` control-flow/error-binding/backend handler ve gözlemlenebilir hata payload/string ABI kapısı kapatıldı. Sıradaki eksik düğümler `ExpressionStatement`, `FieldDeclaration`, diğer `Command` ve diğer `Declaration` düğümleridir; bunlar kendi semantik/ABI/capability modelleriyle kapatılmadan Aşama 10 tamamlanmış sayılmaz.
+Aşama 10 henüz tamamlanmış değildir. Mevcut IR v1 kapsamındaki `TryStatement` control-flow/error-binding/backend handler ve gözlemlenebilir hata payload/string ABI kapısı kapatıldı. `ExpressionStatement` semantik analizden geçirilip normal ifade lowering yolu üzerinden sonucu atılarak, yan etkiler/runtime hataları korunacak biçimde kapatıldı. Sıradaki eksik düğümler `FieldDeclaration`, diğer `Command` ve diğer `Declaration` düğümleridir; bunlar kendi semantik/ABI/capability modelleriyle kapatılmadan Aşama 10 tamamlanmış sayılmaz.
 
 ## Kalite ve geliştirme akışı
 
