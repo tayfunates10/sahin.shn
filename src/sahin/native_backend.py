@@ -5,6 +5,7 @@ import json
 
 from .ir import IRFlow, IRInstruction, IRProgram, lower_source
 from .member_source_provenance import build_member_source_provenance
+from .range_source_provenance import build_range_source_provenance
 from .source_provenance import SourceProvenance, build_source_provenance
 from .try_backend_validation import validate_backend_program_with_try
 
@@ -71,5 +72,6 @@ def build_native_plan_from_source(source: str) -> NativeAdapterPlan:
         source_provenance=(
             *build_source_provenance(source, program),
             *build_member_source_provenance(source, program),
+            *build_range_source_provenance(source, program),
         ),
     )

@@ -134,6 +134,11 @@ def _execute(
                 f"{member_name!r} üyesi bulunamadı.",
                 location=location,
             )
+        if opcode == "range":
+            return RuntimeErrorSHN(
+                "'..' aralığının iki ucu tam sayı olmalı.",
+                location=location,
+            )
         raise TryBackendEquivalenceError(
             f"Source provenance mevcut olsa da {opcode!r} hata payload ABI'ı henüz desteklenmiyor."
         ) from exc
@@ -292,6 +297,14 @@ def _execute(
                         temps[result] = len(target_value)
                     else:
                         raise KeyError(member_name)
+                elif opcode == "range" and result is not None:
+                    start_name, end_name = operands
+                    start = temp(start_name)
+                    end = temp(end_name)
+                    if not isinstance(start, int) or isinstance(start, bool) or not isinstance(end, int) or isinstance(end, bool):
+                        raise TypeError("'..' aralığının iki ucu tam sayı olmalı.")
+                    step = 1 if end >= start else -1
+                    temps[result] = tuple(range(start, end + step, step))
                 elif opcode == "call" and result is not None:
                     flow_name, *argument_names = operands
                     flow = flow_table.get(flow_name)
