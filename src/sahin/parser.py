@@ -9,6 +9,7 @@ from .ast_nodes import (
     Call,
     Command,
     Declaration,
+    ExpressionStatement,
     FieldDeclaration,
     ForEach,
     IfStatement,
@@ -99,6 +100,13 @@ class Parser:
 
         if self._match(TokenKind.COLON):
             return self._field_declaration(first)
+
+        # Parenthesized direct calls are expressions, not command syntax. Rewind
+        # the identifier so the normal expression parser owns the entire call.
+        if self._at(TokenKind.LPAREN):
+            self.index -= 1
+            expression = self._finish_expression_line(self._expression())
+            return ExpressionStatement(expression)
 
         return self._command(first)
 
