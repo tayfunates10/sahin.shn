@@ -8,14 +8,14 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 |---|---|---|
 | `Literal` | ✅ | `const` ile kararlı literal kodlaması |
 | `Name` | ✅ | `load` |
-| `Unary` | ✅ | `unary` |
-| `Binary` (kısa devre dışı) | ✅ | `binary` |
+| `Unary` | ✅ | `unary`; runtime hata payload/string ABI'si kaynak provenance ile doğrulandı |
+| `Binary` (kısa devre dışı) | ✅ | `binary`; top-level ve flow-local runtime hata payload/string ABI'si kaynak provenance ile doğrulandı |
 | `Binary` (`ve` / `veya`) | ✅ | Lazy RHS `branch/label/jump`, internal join alanı ve control-flow equivalence exact-head CI ile doğrulandı |
 | `Predicate` | ✅ | `yok` / `boş` / `boş_değil` açık `predicate` opcode'u, backend fail-closed şeması ve equivalence testleriyle main üzerinde doğrulandı |
-| `Member` | ✅ | Açık `member` opcode'u, target-temp definite-definition, WASM/native fail-closed şeması ve equivalence regression testleri exact-head CI ile doğrulandı |
-| `Call` | ✅ | Doğrudan adlandırılmış `akış` için `call` opcode'u; hedef/arity doğrulaması, bağımsız çağrı frame'i, lexical capture ve dönüş semantiği WASM/native + equivalence CI ile doğrulandı |
-| `RangeExpression` | ✅ | Explicit `range` opcode'u; WASM/native şema + CFG/use-def doğrulaması ve inclusive ileri/geri equivalence exact-head CI ile doğrulandı |
-| `Pipeline` | ✅ | Explicit `pipeline` opcode'u; `ilk`/`sırala`/`seç` stage allow-listesi, arity/use-def/result şeması ve runtime ↔ WASM/native equivalence CI ile doğrulandı |
+| `Member` | ✅ | Açık `member` opcode'u, target-temp definite-definition, WASM/native fail-closed şeması, runtime/backend equivalence ve kaynak-konumlu hata payload ABI'si doğrulandı |
+| `Call` | ✅ | Doğrudan adlandırılmış `akış` için `call` opcode'u; hedef/arity doğrulaması, bağımsız çağrı frame'i, lexical capture, dönüş semantiği ve taşan hata için call-site provenance doğrulandı. Geçersiz hedef/arity backend runtime payload'ı uydurulmadan semantik/IR sınırında fail-closed reddedilir. |
+| `RangeExpression` | ✅ | Explicit `range` opcode'u; WASM/native şema + CFG/use-def doğrulaması, inclusive ileri/geri equivalence ve kaynak-konumlu runtime hata payload ABI'si doğrulandı |
+| `Pipeline` | ✅ | Explicit `pipeline` opcode'u; `ilk`/`sırala`/`seç` stage allow-listesi, arity/use-def/result şeması, runtime ↔ WASM/native equivalence ve kaynak-konumlu hata payload ABI'si doğrulandı |
 
 ## Doğrulanmış statement kapsamı
 
@@ -32,7 +32,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `IfStatement` | ✅ | Deterministik `branch/label/jump`, lexical scope ve control-flow equivalence doğrulandı |
 | `ForEach` | ✅ | Iterator IR, lexical loop scope, terminator-aware `bitir`, WASM/native origin/use-def doğrulaması ve referans runtime ↔ backend equivalence exact-head CI ile doğrulandı |
 | `MatchStatement` | ✅ | Subject tek değerlendirme, kaynak sıralı pattern karşılaştırması, first-match `binary ==` + `branch/label/jump` ve WASM/native equivalence exact-head CI ile doğrulandı |
-| `TryStatement` | 🚧 | AST lowering, `try_guard`/`catch`, lexical handler scope, normal-path handler bypass, malformed-handler fail-closed doğrulaması ve başarılı/hatalı/nested handler yolları WASM/native plan equivalence ile doğrulandı. Yakalanan hata nesnesinin kullanıcıya gözlemlenebilir payload/string ABI eşdeğerliği henüz tamamlanmadı. |
+| `TryStatement` | ✅ | AST lowering, `try_guard`/`catch`, lexical handler scope, normal-path handler bypass, malformed-handler fail-closed doğrulaması, başarılı/hatalı/nested handler yolları ve mevcut IR v1 kapsamındaki gözlemlenebilir hata payload/string ABI eşdeğerliği doğrulandı. |
 
 ## Control-flow ve çağrı sözleşmesi
 
@@ -52,7 +52,9 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 - ✅ `TryStatement` korunan gövde ve handler'ı ayrı lexical scope'larda indiriyor; normal başarı yolu handler'a fallthrough yapmadan açık join'e ilerliyor.
 - ✅ `try_guard` / `catch` backend sözleşmesi özgün try-aware CFG üzerinde doğrulanıyor; malformed handler/catch ve normal handler girişi fail-closed reddediliyor.
 - ✅ Try başarı, sıfıra bölme hata yolu ve nested-try inner-handler önceliği referans runtime ↔ WASM/native plan equivalence testlerinden geçti.
-- 🚧 Yakalanan hata nesnesinin kullanıcı tarafından okunması/yazdırılması için payload/string ABI eşdeğerliği henüz kanıtlanmadı; bu gözlemlenebilir davranış tamamlanmadan `TryStatement` tam destekli sayılmaz.
+- ✅ `Binary`, `Unary`, `Member`, `RangeExpression` ve `Pipeline` runtime hata yolları top-level/flow source provenance ile kaynak-konumlu `RuntimeErrorSHN` payload/string çıktısında referans runtime ↔ WASM/native eşdeğerliğine sahip.
+- ✅ Flow dışına taşan `RuntimeErrorSHN` için top-level ve flow-local call-site provenance/stack-frame zinciri referans runtime ile eşdeğer.
+- ✅ Yanlış doğrudan call target/arity runtime payload'ı uydurulmadan semantik/IR sınırında fail-closed reddediliyor.
 - ✅ Adapter entegrasyonu herhangi bir yeni capability/import açmıyor.
 
 ## Kalan kabul sırası
@@ -67,7 +69,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 8. ✅ `Pipeline` lowering + backend/equivalence kalite kapısını tamamla.
 9. ✅ `ForEach` IR lowering/control-flow + WASM/native adapter/equivalence kalite kapısını tamamla.
 10. ✅ `MatchStatement` subject-once/first-match control-flow + backend equivalence kalite kapısını tamamla.
-11. 🚧 `TryStatement` control-flow/error-binding/backend handler equivalence çekirdeği doğrulandı; sıradaki küçük dilim yakalanan hata payload/string ABI eşdeğerliğini kapatmak.
+11. ✅ `TryStatement` control-flow/error-binding/backend handler ve mevcut IR v1 runtime hata payload/string ABI eşdeğerliğini kapat.
 12. ⏳ Kalan `ExpressionStatement`, `FieldDeclaration`, diğer `Command` ve diğer `Declaration` düğümlerini kendi semantik/ABI/capability sözleşmeleriyle fail-closed biçimde kapat.
 13. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
 
@@ -81,5 +83,5 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 - Iterator consumer opcode'ları yalnız doğrulanmış `iter_begin` handle'ı ve CFG definite-definition kanıtı ile kabul edilir.
 - Match pattern sırası ve first-match davranışı backend optimizasyonlarıyla değiştirilemez.
 - Try handler yalnız doğrulanmış exceptional kenardan erişilebilir; normal jump/branch/fallthrough ile handler girişi yasaktır.
-- Yakalanan hata değeri gözlemlenebilir olduğunda referans runtime ile payload/string eşdeğerliği kanıtlanmadan backend desteği tamamlandı sayılmaz.
+- Mevcut IR v1 kapsamındaki gözlemlenebilir hata değeri referans runtime ile payload/string eşdeğerliği kanıtlanmadan backend desteği tamamlandı sayılmaz.
 - Benchmark veya performans hedefi semantik eşdeğerlik kontrolünü devre dışı bırakamaz.
