@@ -10,8 +10,6 @@ SOURCE = '''akış böl
     olmazsa hata
         yaz hata
     ver yok
-
-böl
 '''
 
 
