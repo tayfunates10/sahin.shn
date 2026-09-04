@@ -181,8 +181,15 @@ def test_ir_v1_lowers_and_with_false_short_circuit_value():
     validate_control_flow(lowered)
 
 
-def test_ir_v1_rejects_unvalidated_expression_statement():
-    program = Program(statements=(ExpressionStatement(Name("bilinmeyen")),))
+def test_ir_v1_lowers_semantically_valid_expression_statement_and_discards_result():
+    program = Program(statements=(ExpressionStatement(Literal(Decimal("3"))),))
 
-    with pytest.raises(IRLoweringError, match="ExpressionStatement"):
-        lower_program(program)
+    lowered = lower_program(program)
+
+    assert tuple(item.opcode for item in lowered.instructions) == ("const",)
+    assert lowered.instructions[0].result == "%0"
+
+
+def test_ir_v1_rejects_semantically_invalid_expression_statement_before_lowering():
+    with pytest.raises(IRLoweringError, match="Semantik doğrulama başarısız"):
+        lower_source("bilinmeyen()\n")

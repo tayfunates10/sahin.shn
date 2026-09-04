@@ -24,7 +24,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 | `Assignment` | ✅ | `store` |
 | `Binding` | ✅ | `bind` |
 | `Write` | ✅ | `write` |
-| `ExpressionStatement` | ⏳ | Semantik geçerliliği açıkça modellenene kadar fail-closed |
+| `ExpressionStatement` | ✅ | İfade semantik analizden geçer; normal expression lowering ile değerlendirilir, sonucu atılır, yan etkiler/runtime hataları korunur; backend capability yüzeyi genişlemez |
 | `FieldDeclaration` | ⏳ | Henüz lowering sözleşmesi yok |
 | `Command` | 🚧 | `yaz`/`bildir` yalnız referans runtime ile aynı ilk-argüman semantiğiyle doğrulandı; host/capability etkili diğer komutlar fail-closed |
 | `Declaration` (`akış`) | ✅ | `IRFlow`; parametre/type metadata, lexical captures, `return`, recursion için predeclaration ve backend flow doğrulaması exact-head CI ile doğrulandı |
@@ -70,7 +70,7 @@ Bu belge Aşama 10'un kalan IR/semantic lowering işini fail-closed biçimde izl
 9. ✅ `ForEach` IR lowering/control-flow + WASM/native adapter/equivalence kalite kapısını tamamla.
 10. ✅ `MatchStatement` subject-once/first-match control-flow + backend equivalence kalite kapısını tamamla.
 11. ✅ `TryStatement` control-flow/error-binding/backend handler ve mevcut IR v1 runtime hata payload/string ABI eşdeğerliğini kapat.
-12. ⏳ Kalan `ExpressionStatement`, `FieldDeclaration`, diğer `Command` ve diğer `Declaration` düğümlerini kendi semantik/ABI/capability sözleşmeleriyle fail-closed biçimde kapat.
+12. 🚧 `ExpressionStatement` kapatıldı; kalan `FieldDeclaration`, diğer `Command` ve diğer `Declaration` düğümlerini kendi semantik/ABI/capability sözleşmeleriyle fail-closed biçimde kapat.
 13. Tam AST/semantic kapsam matrisi, olumlu/olumsuz/regression/property/security testleri ve Python 3.11/3.12/3.13 + gerçek `.shn` smoke tamamen yeşil olduğunda Aşama 10'u `%94` olarak kapat.
 
 ## Kalite ilkeleri

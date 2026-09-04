@@ -11,6 +11,7 @@ from .ast_nodes import (
     Call,
     Command,
     Declaration,
+    ExpressionStatement,
     FieldDeclaration,
     ForEach,
     IfStatement,
@@ -211,6 +212,10 @@ class SemanticAnalyzer:
                 statement.location,
                 type_spec=chosen_spec,
             )
+            return
+
+        if isinstance(statement, ExpressionStatement):
+            self._expression(statement.expression, scope)
             return
 
         if isinstance(statement, Write):

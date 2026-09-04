@@ -456,9 +456,10 @@ class _Lowerer:
             self._lower_try(statement)
             return
         if isinstance(statement, ExpressionStatement):
-            raise IRLoweringError(
-                "Aşama 10 IR v1 ExpressionStatement düğümünü semantik analiz açıkça doğrulayana kadar desteklemiyor."
-            )
+            # Referans runtime ifadeyi değerlendirir ve yalnız sonucunu atar;
+            # yan etkiler ve runtime hataları normal ifade lowering yolunda korunur.
+            self._expression(statement.expression)
+            return
         raise IRLoweringError(
             f"Aşama 10 IR v1 henüz {type(statement).__name__} düğümünü desteklemiyor."
         )
