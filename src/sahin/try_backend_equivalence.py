@@ -89,7 +89,6 @@ def _execute(
     source_provenance: Sequence[SourceProvenance] = (),
     flows: Sequence[IRFlow] = (),
 ) -> tuple[str, ...]:
-    """Try dilimini top-level ve bağımsız IRFlow instruction uzaylarında yürütür."""
     flow_table = {flow.name: flow for flow in flows}
     if len(flow_table) != len(flows):
         raise TryBackendEquivalenceError("Yinelenen flow adı equivalence yürütücüsünde reddedildi.")
@@ -105,10 +104,7 @@ def _execute(
 
     global_values: dict[str, object] = {}
     output: list[str] = []
-    step_budget = max(
-        4096,
-        (len(instructions) + sum(len(flow.instructions) for flow in flows)) * 256,
-    )
+    step_budget = max(4096, (len(instructions) + sum(len(flow.instructions) for flow in flows)) * 256)
     steps = 0
 
     def runtime_error_for(
@@ -126,7 +122,7 @@ def _execute(
                 f"(kapsam {scope_name}, instruction {pc})."
             ) from exc
         location = SourceLocation(provenance.line, provenance.column)
-        if opcode == "binary":
+        if opcode in {"binary", "unary"}:
             operator = operands[0]
             return RuntimeErrorSHN(
                 f"{operator!r} işlemi uygulanamadı: {exc}",
@@ -288,9 +284,7 @@ def _execute(
                         raise TryBackendEquivalenceError(f"Bilinmeyen IR call hedefi: {flow_name}")
                     arguments = tuple(temp(name) for name in argument_names)
                     if len(arguments) != len(flow.parameters):
-                        raise TryBackendEquivalenceError(
-                            f"IR call argüman sayısı uyuşmuyor: {flow_name}"
-                        )
+                        raise TryBackendEquivalenceError(f"IR call argüman sayısı uyuşmuyor: {flow_name}")
                     frame_values = dict(zip(flow.parameters, arguments, strict=True))
                     try:
                         returned, value = run(
@@ -314,9 +308,7 @@ def _execute(
                         raise TryBackendEquivalenceError(f"Akış dönüş üretmeden sonlandı: {flow_name}")
                     temps[result] = value
                 else:
-                    raise TryBackendEquivalenceError(
-                        f"Try equivalence diliminde desteklenmeyen opcode: {opcode}"
-                    )
+                    raise TryBackendEquivalenceError(f"Try equivalence diliminde desteklenmeyen opcode: {opcode}")
             except (ArithmeticError, TypeError) as exc:
                 target = exceptional_target(pc)
                 error = runtime_error_for(pc, scope, opcode, operands, exc)
@@ -343,17 +335,11 @@ def _execute(
             return False, None
         return False, None
 
-    run(
-        instructions,
-        scope=None,
-        local_values=global_values,
-        local_bindings=set(),
-    )
+    run(instructions, scope=None, local_values=global_values, local_bindings=set())
     return tuple(output)
 
 
 def compare_try_source(source: str) -> TryEquivalenceReport:
-    """Try başarı ve hata yollarını referans runtime ile provenance taşıyan WASM/native planlarında karşılaştırır."""
     reference_output: list[str] = []
     Runtime(reference_output.append).execute(parse(tokenize(source)))
 
