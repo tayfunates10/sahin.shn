@@ -128,6 +128,12 @@ def _execute(
                 f"{operator!r} işlemi uygulanamadı: {exc}",
                 location=location,
             )
+        if opcode == "member":
+            member_name = operands[0]
+            return RuntimeErrorSHN(
+                f"{member_name!r} üyesi bulunamadı.",
+                location=location,
+            )
         raise TryBackendEquivalenceError(
             f"Source provenance mevcut olsa da {opcode!r} hata payload ABI'ı henüz desteklenmiyor."
         ) from exc
@@ -277,6 +283,15 @@ def _execute(
                     if operator not in operations:
                         raise TryBackendEquivalenceError(f"Bilinmeyen binary: {operator}")
                     temps[result] = operations[operator]()
+                elif opcode == "member" and result is not None:
+                    member_name, target_name = operands
+                    target_value = temp(target_name)
+                    if isinstance(target_value, dict) and member_name in target_value:
+                        temps[result] = target_value[member_name]
+                    elif member_name == "uzunluk" and isinstance(target_value, (str, tuple, list, dict)):
+                        temps[result] = len(target_value)
+                    else:
+                        raise KeyError(member_name)
                 elif opcode == "call" and result is not None:
                     flow_name, *argument_names = operands
                     flow = flow_table.get(flow_name)
@@ -309,7 +324,7 @@ def _execute(
                     temps[result] = value
                 else:
                     raise TryBackendEquivalenceError(f"Try equivalence diliminde desteklenmeyen opcode: {opcode}")
-            except (ArithmeticError, TypeError) as exc:
+            except (ArithmeticError, TypeError, KeyError) as exc:
                 target = exceptional_target(pc)
                 error = runtime_error_for(pc, scope, opcode, operands, exc)
                 if target is None:
@@ -317,12 +332,10 @@ def _execute(
                 pending_error = error
                 pc = target
                 continue
-            except (KeyError, TryBackendEquivalenceError) as exc:
+            except TryBackendEquivalenceError as exc:
                 target = exceptional_target(pc)
                 if target is None:
-                    if isinstance(exc, TryBackendEquivalenceError):
-                        raise
-                    raise TryBackendEquivalenceError(f"Korunmayan IR hatası: {exc}") from exc
+                    raise
                 raise TryBackendEquivalenceError(
                     f"Yakalanan backend yürütme hatası kullanıcı hata payload'ına güvenle dönüştürülemedi: {exc}"
                 ) from exc
