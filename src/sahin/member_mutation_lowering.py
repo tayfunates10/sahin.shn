@@ -75,35 +75,58 @@ def lower_member_mutation_owner_order(
     evaluate_amount: Callable[[], str] | None,
     evaluate_write_owner: Callable[[], str],
     next_temp: Callable[[], str],
+    emit_instruction: Callable[[IRInstruction], None] | None = None,
 ) -> MemberMutationLoweringPlan:
-    """Üst lowerer için referans runtime değerlendirme sırasını kilitler.
+    """Referans runtime değerlendirme ve IR yayın sırasını birlikte kilitler.
 
-    Owner ifadelerini kernel'e hazır temp olarak vermek sıralama hatasına açıktır. Bu
-    orkestratör callback'leri kesin olarak `read-owner -> amount -> write-owner`
-    sırasıyla çağırır; kernel de ürettiği IR'da `member -> binary -> member_store`
-    düzenini korur. Böylece miktar ifadesi kök/owner durumunu değiştirirse yazma owner'ı
-    eski snapshot'tan değil, aritmetikten sonra yeniden değerlendirilir.
+    Sıra yalnız callback çağrılarıyla korunamaz: `member` okuması miktar ifadesinden
+    önce, `binary` ise write-owner yeniden değerlendirilmeden önce gerçekten yayınlanmış
+    olmalıdır. `emit_instruction` verildiğinde orkestratör talimatları çağıranın IR
+    akışına tam olarak şu sırada ekler:
+
+    read-owner -> member -> amount/default -> binary -> write-owner -> member_store
+
+    Callback verilmeden kullanımda da dönen plan aynı kanonik talimat sırasını taşır.
     """
     validate_member_mutation_for_lowering(mutation)
+    member_name = mutation.path[-1]
+    instructions: list[IRInstruction] = []
+
+    def publish(instruction: IRInstruction) -> None:
+        instructions.append(instruction)
+        if emit_instruction is not None:
+            emit_instruction(instruction)
 
     read_target_temp = evaluate_read_owner()
     _validate_temp(read_target_temp, "Member mutation okuma hedefi")
 
-    amount_temp: str | None = None
+    current = next_temp()
+    _validate_temp(current, "Temp üreticisi")
+    publish(IRInstruction("member", (member_name, read_target_temp), current))
+
     if evaluate_amount is not None:
         amount_temp = evaluate_amount()
         _validate_temp(amount_temp, "Member mutation miktarı")
+    else:
+        amount_temp = next_temp()
+        _validate_temp(amount_temp, "Temp üreticisi")
+        publish(IRInstruction("const", ("tam:1",), amount_temp))
+
+    result = next_temp()
+    _validate_temp(result, "Temp üreticisi")
+    publish(IRInstruction("binary", (mutation.operator, current, amount_temp), result))
 
     write_target_temp = evaluate_write_owner()
     _validate_temp(write_target_temp, "Member mutation yazma hedefi")
 
-    return lower_member_mutation_kernel(
-        mutation,
-        read_target_temp=read_target_temp,
-        write_target_temp=write_target_temp,
-        amount_temp=amount_temp,
-        next_temp=next_temp,
-    )
+    store = IRInstruction("member_store", (member_name, write_target_temp, result))
+    try:
+        validate_member_store_instruction(store)
+    except ValueError as exc:
+        raise MemberMutationLoweringError(str(exc)) from exc
+    publish(store)
+
+    return MemberMutationLoweringPlan(tuple(instructions), result)
 
 
 def _validate_temp(value: str, label: str) -> None:
