@@ -7,6 +7,7 @@ import json
 
 from .ir import IRFlow, IRInstruction, lower_source
 from .lexer import tokenize
+from .member_store_equivalence import MemberStoreEquivalenceError, apply_member_store
 from .native_backend import build_native_plan
 from .parser import parse
 from .runtime import Runtime
@@ -140,8 +141,6 @@ def _pipeline(stage: str, value: object, argument: object = None, *, has_argumen
 def _iterator_source(value: object) -> _IteratorState:
     if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
         raise BackendEquivalenceError("IR iter_begin kaynağı yinelenebilir bir değer olmalıdır.")
-    # Kaynak yalnız bir kez snapshot edilir; sonraki has_next/value/advance aynı
-    # iterator state üzerinde deterministik biçimde ilerler.
     return _IteratorState(tuple(value))
 
 
@@ -265,6 +264,12 @@ def _execute(
             elif opcode == "member" and result is not None:
                 member_name, target_name = operands
                 temps[result] = _member(temp(target_name), member_name)
+            elif opcode == "member_store":
+                member_name, target_name, value_name = operands
+                try:
+                    apply_member_store(temp(target_name), member_name, temp(value_name))
+                except MemberStoreEquivalenceError as exc:
+                    raise BackendEquivalenceError(str(exc)) from exc
             elif opcode == "range" and result is not None:
                 start_name, end_name = operands
                 start = temp(start_name)
