@@ -304,7 +304,7 @@ class _Lowerer:
     def _lower_name_mutation(self, statement: Command) -> None:
         if not isinstance(statement.subject, Name):
             raise IRLoweringError(
-                "`artır/azalt` IR ABI v1 şimdilik yalnız doğrudan Name hedefini destekliyor."
+                "`artır/azalt` IR ABI v1 doğrudan Name hedefi bekliyor."
             )
         target = self._resolve_name(statement.subject.value)
         if target is None:
@@ -327,6 +327,36 @@ class _Lowerer:
         operator = "+" if statement.name == "artır" else "-"
         self._emit("binary", (operator, current, amount), result)
         self._emit("store", (target, result))
+
+    def _lower_member_mutation(self, statement: Command) -> None:
+        if not isinstance(statement.subject, Member):
+            raise IRLoweringError("Member mutation lowering bir Member hedefi bekliyor.")
+
+        # Circular import oluşmaması için ABI orkestratörünü IRInstruction tanımlandıktan
+        # ve modül tamamen yüklenirken çağrılacak bu dar noktada içe aktar.
+        from .member_mutation_abi import MemberMutationABIError, analyze_member_mutation
+        from .member_mutation_lowering import (
+            MemberMutationLoweringError,
+            lower_member_mutation_owner_order,
+        )
+
+        try:
+            mutation = analyze_member_mutation(statement)
+            owner = statement.subject.target
+            lower_member_mutation_owner_order(
+                mutation,
+                evaluate_read_owner=lambda: self._expression(owner),
+                evaluate_amount=(
+                    (lambda: self._expression(statement.arguments[0]))
+                    if statement.arguments
+                    else None
+                ),
+                evaluate_write_owner=lambda: self._expression(owner),
+                next_temp=self._temp,
+                emit_instruction=self.instructions.append,
+            )
+        except (MemberMutationABIError, MemberMutationLoweringError) as exc:
+            raise IRLoweringError(str(exc)) from exc
 
     def _lower_match(self, statement: MatchStatement) -> None:
         # Subject referans runtime ile aynı şekilde tam bir kez değerlendirilir.
@@ -412,8 +442,15 @@ class _Lowerer:
                 self._lower_write_command(statement)
                 return
             if statement.name in {"artır", "azalt"}:
-                self._lower_name_mutation(statement)
-                return
+                if isinstance(statement.subject, Name):
+                    self._lower_name_mutation(statement)
+                    return
+                if isinstance(statement.subject, Member):
+                    self._lower_member_mutation(statement)
+                    return
+                raise IRLoweringError(
+                    "`artır/azalt` IR ABI v1 yalnız Name veya Member mutation hedefini destekliyor."
+                )
             raise IRLoweringError(
                 f"Aşama 10 IR v1 henüz {statement.name!r} Command düğümünü bu kapsamda desteklemiyor."
             )
