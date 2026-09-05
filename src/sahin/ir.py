@@ -143,6 +143,7 @@ class _Lowerer:
         *,
         flow_names: dict[str, str] | None = None,
         initial_names: dict[str, str] | None = None,
+        initial_bindings: set[str] | None = None,
         in_flow: bool = False,
     ) -> None:
         self.instructions: list[IRInstruction] = []
@@ -155,6 +156,7 @@ class _Lowerer:
         self._in_flow = in_flow
         self._capture_candidates = set((initial_names or {}).values())
         self._captures: set[str] = set()
+        self._bindings: set[str] = set(initial_bindings or ())
         self._loop_end_labels: list[str] = []
 
     def lower(self, program: Program) -> IRProgram:
@@ -211,6 +213,10 @@ class _Lowerer:
             visible.update(names)
         return visible
 
+    def _visible_bindings(self) -> set[str]:
+        visible = set(self._visible_names().values())
+        return self._bindings & visible
+
     def _emit(self, opcode: str, operands: tuple[str, ...] = (), result: str | None = None) -> None:
         self.instructions.append(IRInstruction(opcode, operands, result))
 
@@ -252,6 +258,7 @@ class _Lowerer:
         child = _Lowerer(
             flow_names=self._flow_names,
             initial_names=self._visible_names(),
+            initial_bindings=self._visible_bindings(),
             in_flow=True,
         )
         child._push_scope()
@@ -293,6 +300,33 @@ class _Lowerer:
         # Referans runtime `yaz`/`bildir` için yalnız ilk argümanı değerlendirir;
         # fazladan argüman/arrow bu komut yolunda side-effect üretmez.
         self._emit("write", (value,))
+
+    def _lower_name_mutation(self, statement: Command) -> None:
+        if not isinstance(statement.subject, Name):
+            raise IRLoweringError(
+                "`artır/azalt` IR ABI v1 şimdilik yalnız doğrudan Name hedefini destekliyor."
+            )
+        target = self._resolve_name(statement.subject.value)
+        if target is None:
+            raise IRLoweringError(
+                f"Mutation hedefi semantik doğrulama sonrası çözülemedi: {statement.subject.value!r}."
+            )
+        if target in self._bindings:
+            raise IRLoweringError(
+                f"{statement.subject.value!r} '<-' ile bağlı immutable bir değerdir; artır/azalt uygulanamaz."
+            )
+
+        current = self._temp()
+        self._emit("load", (target,), current)
+        if statement.arguments:
+            amount = self._expression(statement.arguments[0])
+        else:
+            amount = self._temp()
+            self._emit("const", (self._literal(1),), amount)
+        result = self._temp()
+        operator = "+" if statement.name == "artır" else "-"
+        self._emit("binary", (operator, current, amount), result)
+        self._emit("store", (target, result))
 
     def _lower_match(self, statement: MatchStatement) -> None:
         # Subject referans runtime ile aynı şekilde tam bir kez değerlendirilir.
@@ -377,6 +411,9 @@ class _Lowerer:
             if statement.name in {"yaz", "bildir"} and statement.subject is None:
                 self._lower_write_command(statement)
                 return
+            if statement.name in {"artır", "azalt"}:
+                self._lower_name_mutation(statement)
+                return
             raise IRLoweringError(
                 f"Aşama 10 IR v1 henüz {statement.name!r} Command düğümünü bu kapsamda desteklemiyor."
             )
@@ -390,6 +427,7 @@ class _Lowerer:
         if isinstance(statement, Binding):
             value = self._expression(statement.source)
             target = self._declare_name(statement.name)
+            self._bindings.add(target)
             self._emit("bind", (target, value))
             return
         if isinstance(statement, Write):
