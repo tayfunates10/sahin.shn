@@ -68,6 +68,44 @@ def lower_member_mutation_kernel(
     return MemberMutationLoweringPlan(tuple(instructions), result)
 
 
+def lower_member_mutation_owner_order(
+    mutation: MemberMutationTarget,
+    *,
+    evaluate_read_owner: Callable[[], str],
+    evaluate_amount: Callable[[], str] | None,
+    evaluate_write_owner: Callable[[], str],
+    next_temp: Callable[[], str],
+) -> MemberMutationLoweringPlan:
+    """Üst lowerer için referans runtime değerlendirme sırasını kilitler.
+
+    Owner ifadelerini kernel'e hazır temp olarak vermek sıralama hatasına açıktır. Bu
+    orkestratör callback'leri kesin olarak `read-owner -> amount -> write-owner`
+    sırasıyla çağırır; kernel de ürettiği IR'da `member -> binary -> member_store`
+    düzenini korur. Böylece miktar ifadesi kök/owner durumunu değiştirirse yazma owner'ı
+    eski snapshot'tan değil, aritmetikten sonra yeniden değerlendirilir.
+    """
+    validate_member_mutation_for_lowering(mutation)
+
+    read_target_temp = evaluate_read_owner()
+    _validate_temp(read_target_temp, "Member mutation okuma hedefi")
+
+    amount_temp: str | None = None
+    if evaluate_amount is not None:
+        amount_temp = evaluate_amount()
+        _validate_temp(amount_temp, "Member mutation miktarı")
+
+    write_target_temp = evaluate_write_owner()
+    _validate_temp(write_target_temp, "Member mutation yazma hedefi")
+
+    return lower_member_mutation_kernel(
+        mutation,
+        read_target_temp=read_target_temp,
+        write_target_temp=write_target_temp,
+        amount_temp=amount_temp,
+        next_temp=next_temp,
+    )
+
+
 def _validate_temp(value: str, label: str) -> None:
     if not isinstance(value, str) or not value.startswith("%"):
         raise MemberMutationLoweringError(f"{label} geçerli bir IR geçicisi olmalıdır.")
