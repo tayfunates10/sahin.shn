@@ -1,7 +1,5 @@
-import pytest
-
 from sahin.ast_nodes import Command, Name
-from sahin.ir import IRLoweringError, lower_source
+from sahin.ir import lower_source
 from sahin.lexer import tokenize
 from sahin.parser import parse
 from sahin.runtime import Runtime
@@ -25,6 +23,15 @@ def test_direct_name_mutation_matches_reference_runtime():
     assert values["stok"] == 4
 
 
-def test_direct_name_mutation_stays_fail_closed_in_ir_until_abi_is_added():
-    with pytest.raises(IRLoweringError, match=r"'artır' Command düğümünü"):
-        lower_source("stok = 3\nstok artır 2\n")
+def test_direct_name_mutation_lowers_to_existing_ir_primitives():
+    ir = lower_source("stok = 3\nstok artır 2\n")
+
+    assert [item.opcode for item in ir.instructions] == [
+        "const",
+        "store",
+        "load",
+        "const",
+        "binary",
+        "store",
+    ]
+    assert ir.instructions[4].operands[0] == "+"
