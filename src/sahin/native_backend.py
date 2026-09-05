@@ -8,6 +8,7 @@ from .member_source_provenance import build_member_source_provenance
 from .member_store_backend_validation import validate_backend_program_with_member_store
 from .pipeline_source_provenance import build_pipeline_source_provenance
 from .range_source_provenance import build_range_source_provenance
+from .record_adapter_metadata import RecordAdapterMetadataError, validate_adapter_record_schemas
 from .record_ir import lower_source_with_record_metadata
 from .record_metadata import RecordSchemaABI
 from .source_provenance import SourceProvenance, build_source_provenance
@@ -69,6 +70,10 @@ def build_native_plan_from_source(source: str) -> NativeAdapterPlan:
     bundle = lower_source_with_record_metadata(source)
     program = bundle.program
     plan = build_native_plan(program)
+    try:
+        record_schemas = validate_adapter_record_schemas(bundle.record_schemas)
+    except RecordAdapterMetadataError as exc:
+        raise NativeBackendError(f"Native record metadata doğrulaması başarısız: {exc}") from exc
     return NativeAdapterPlan(
         ir_version=plan.ir_version,
         adapter_version=plan.adapter_version,
@@ -82,5 +87,5 @@ def build_native_plan_from_source(source: str) -> NativeAdapterPlan:
             *build_range_source_provenance(source, program),
             *build_pipeline_source_provenance(source, program),
         ),
-        record_schemas=bundle.record_schemas,
+        record_schemas=record_schemas,
     )
