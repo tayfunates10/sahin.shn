@@ -5,12 +5,12 @@ import json
 
 from .ir import IRFlow, IRInstruction, IRProgram
 from .member_source_provenance import build_member_source_provenance
+from .member_store_backend_validation import validate_backend_program_with_member_store
 from .pipeline_source_provenance import build_pipeline_source_provenance
 from .range_source_provenance import build_range_source_provenance
 from .record_ir import lower_source_with_record_metadata
 from .record_metadata import RecordSchemaABI
 from .source_provenance import SourceProvenance, build_source_provenance
-from .try_backend_validation import validate_backend_program_with_try
 
 
 class NativeBackendError(ValueError):
@@ -49,7 +49,7 @@ def build_native_plan(program: IRProgram, *, target: str = "native-sahin-safe") 
     """IR v1'i capability açmadan deterministik native adapter planına çevirir."""
     if target != "native-sahin-safe":
         raise NativeBackendError(f"Desteklenmeyen native hedefi: {target}")
-    validate_backend_program_with_try(
+    validate_backend_program_with_member_store(
         program,
         error_type=NativeBackendError,
         backend_name="Native",
