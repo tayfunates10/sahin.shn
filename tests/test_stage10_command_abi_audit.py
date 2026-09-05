@@ -27,10 +27,22 @@ def test_name_decrement_command_is_now_lowered_by_mutation_abi():
     assert [item.opcode for item in ir.instructions] == ["const", "store", "load", "const", "binary", "store"]
 
 
-def test_member_mutation_stays_fail_closed_until_member_lvalue_abi_exists():
+def test_member_mutation_is_now_lowered_by_member_lvalue_abi():
     member_subject = Member(Name("stok"), "adet")
-    with pytest.raises(IRLoweringError, match=r"yalnız doğrudan Name hedefini"):
-        lower_program(_mutation_program("artır", subject=member_subject))
+    ir = lower_program(_mutation_program("artır", subject=member_subject))
+
+    opcodes = [item.opcode for item in ir.instructions]
+    assert opcodes == [
+        "const",
+        "store",
+        "load",
+        "member",
+        "const",
+        "binary",
+        "load",
+        "member_store",
+    ]
+    assert ir.instructions[-1].operands[0] == "adet"
 
 
 def test_host_effect_command_stays_fail_closed():
