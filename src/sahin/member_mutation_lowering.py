@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from .ir import IRInstruction
-from .member_mutation_abi import MemberMutationABI, MemberMutationABIError
+from .member_mutation_abi import MemberMutationTarget
 from .member_store_abi import validate_member_store_instruction
 
 
@@ -19,7 +19,7 @@ class MemberMutationLoweringPlan:
 
 
 def lower_member_mutation_kernel(
-    mutation: MemberMutationABI,
+    mutation: MemberMutationTarget,
     *,
     target_temp: str,
     amount_temp: str | None,
@@ -31,14 +31,11 @@ def lower_member_mutation_kernel(
     geçicisidir. Kernel target expression'ı yeniden değerlendirmez. Miktar verilmemişse
     Şahin runtime sözleşmesiyle aynı biçimde `1` üretir.
     """
+    validate_member_mutation_for_lowering(mutation)
     if not target_temp.startswith("%"):
         raise MemberMutationLoweringError("Member mutation hedefi geçici bir nesne değeri olmalıdır.")
     if amount_temp is not None and not amount_temp.startswith("%"):
         raise MemberMutationLoweringError("Member mutation miktarı geçici bir değer olmalıdır.")
-    if mutation.verb not in {"artır", "azalt"}:
-        raise MemberMutationLoweringError(f"Desteklenmeyen mutation fiili: {mutation.verb!r}.")
-    if not mutation.path:
-        raise MemberMutationLoweringError("Member mutation alan yolu boş olamaz.")
 
     member_name = mutation.path[-1]
     current = next_temp()
@@ -59,8 +56,7 @@ def lower_member_mutation_kernel(
     result = next_temp()
     if not result.startswith("%"):
         raise MemberMutationLoweringError("Temp üreticisi geçerli bir IR geçicisi üretmelidir.")
-    operator = "+" if mutation.verb == "artır" else "-"
-    instructions.append(IRInstruction("binary", (operator, current, effective_amount), result))
+    instructions.append(IRInstruction("binary", (mutation.operator, current, effective_amount), result))
 
     store = IRInstruction("member_store", (member_name, target_temp, result))
     try:
@@ -72,14 +68,13 @@ def lower_member_mutation_kernel(
     return MemberMutationLoweringPlan(tuple(instructions), result)
 
 
-def validate_member_mutation_for_lowering(mutation: MemberMutationABI) -> None:
-    """Kernel'e yalnız daha önce doğrulanmış lvalue ABI nesnesi girmesini fail-closed doğrular."""
-    try:
-        if mutation.verb not in {"artır", "azalt"}:
-            raise MemberMutationABIError(f"Desteklenmeyen mutation fiili: {mutation.verb!r}.")
-        if not mutation.path:
-            raise MemberMutationABIError("Member mutation yolu boş olamaz.")
-        if any(not segment for segment in mutation.path):
-            raise MemberMutationABIError("Member mutation yolunda boş alan adı olamaz.")
-    except MemberMutationABIError as exc:
-        raise MemberMutationLoweringError(str(exc)) from exc
+def validate_member_mutation_for_lowering(mutation: MemberMutationTarget) -> None:
+    """Kernel'e yalnız doğrulanmış lvalue ABI nesnesi girmesini fail-closed doğrular."""
+    if mutation.operator not in {"+", "-"}:
+        raise MemberMutationLoweringError(f"Desteklenmeyen mutation operatörü: {mutation.operator!r}.")
+    if not mutation.root_name:
+        raise MemberMutationLoweringError("Member mutation kökü boş olamaz.")
+    if not mutation.path:
+        raise MemberMutationLoweringError("Member mutation yolu boş olamaz.")
+    if any(not segment for segment in mutation.path):
+        raise MemberMutationLoweringError("Member mutation yolunda boş alan adı olamaz.")
