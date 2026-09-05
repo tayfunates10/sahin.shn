@@ -101,6 +101,30 @@ class Parser:
         if self._match(TokenKind.COLON):
             return self._field_declaration(first)
 
+        # `stok artır 1` / `stok azalt 1` doğrudan bir Name lvalue mutation
+        # komutudur. Genel identifier-leading command yolu bu formu `stok`
+        # adlı komut gibi yorumlamamalıdır.
+        if self._at_keyword("artır") or self._at_keyword("azalt"):
+            verb = self._advance()
+            arguments = []
+            while not self._at_any(TokenKind.NEWLINE, TokenKind.EOF, TokenKind.DEDENT):
+                if self._match(TokenKind.COMMA):
+                    continue
+                arguments.append(
+                    self._expression(
+                        allow_pipeline=True,
+                        allow_implicit_call=False,
+                        stop_kinds={TokenKind.COMMA, TokenKind.NEWLINE, TokenKind.DEDENT},
+                    )
+                )
+            self._line_end()
+            return Command(
+                name=verb.value,
+                arguments=tuple(arguments),
+                subject=Name(first.value, self._loc(first)),
+                location=self._loc(first),
+            )
+
         # Parenthesized direct calls are expressions, not command syntax. Rewind
         # the identifier so the normal expression parser owns the entire call.
         if self._at(TokenKind.LPAREN):
