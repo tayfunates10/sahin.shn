@@ -1,22 +1,33 @@
 import pytest
 
-from sahin.ir import IRLoweringError, lower_source
+from sahin.ast_nodes import Assignment, Command, Literal, Name, Program
+from sahin.ir import IRLoweringError, lower_program, lower_source
+
+
+def _mutation_program(command_name: str) -> Program:
+    return Program(
+        (
+            Assignment("stok", Literal(3)),
+            Command(
+                name=command_name,
+                arguments=(Literal(1),),
+                subject=Name("stok"),
+            ),
+        )
+    )
 
 
 def test_increment_command_stays_fail_closed_until_mutation_abi_exists():
-    source = """stok = 3
-stok artır 1
-"""
+    # Runtime ABI Name/Member subject kabul eder. Parser'ın çıplak
+    # `stok artır 1` satırını başka bir Command biçimi olarak yorumlaması bu
+    # IR sınır testini yanlış komuta bağlamamalı; gerçek semantic AST'yi sınarız.
     with pytest.raises(IRLoweringError, match=r"'artır' Command düğümünü"):
-        lower_source(source)
+        lower_program(_mutation_program("artır"))
 
 
 def test_decrement_command_stays_fail_closed_until_mutation_abi_exists():
-    source = """stok = 3
-stok azalt 1
-"""
     with pytest.raises(IRLoweringError, match=r"'azalt' Command düğümünü"):
-        lower_source(source)
+        lower_program(_mutation_program("azalt"))
 
 
 def test_host_effect_command_stays_fail_closed():
