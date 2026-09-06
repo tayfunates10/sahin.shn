@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .ast_nodes import Declaration
+from .ast_nodes import Declaration, Program
 
 
 class StructuralDeclarationABIError(ValueError):
@@ -74,3 +74,25 @@ def analyze_structural_declaration(declaration: Declaration) -> StructuralDeclar
         header_arity=len(declaration.header),
         body_arity=len(declaration.body),
     )
+
+
+def extract_structural_declaration_metadata(
+    program: Program,
+) -> tuple[StructuralDeclarationMetadata, ...]:
+    """Collect validated top-level structural declarations in source order.
+
+    Non-structural statements are deliberately left to their existing Stage 10
+    lowering paths. Structural declarations are never executed here; each one is
+    passed through the same fail-closed shape validator and emitted as metadata
+    only. This keeps program-level collection deterministic without inventing
+    motor/backend semantics.
+    """
+
+    metadata: list[StructuralDeclarationMetadata] = []
+    for statement in program.statements:
+        if not isinstance(statement, Declaration):
+            continue
+        if statement.kind not in STRUCTURAL_DECLARATION_KINDS:
+            continue
+        metadata.append(analyze_structural_declaration(statement))
+    return tuple(metadata)
