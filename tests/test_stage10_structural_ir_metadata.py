@@ -8,8 +8,8 @@ from sahin.structural_ir import lower_source_with_structural_metadata
 def test_structural_metadata_is_carried_without_executable_opcode() -> None:
     bundle = lower_source_with_structural_metadata(
         """
-uygulama Ana:
-    ekran Giris:
+uygulama Ana
+    ekran Giris
         yaz \"merhaba\"
 """
     )
@@ -23,7 +23,7 @@ uygulama Ana:
 def test_structural_metadata_canonical_is_deterministic_and_unicode_safe() -> None:
     bundle = lower_source_with_structural_metadata(
         """
-görünüm Özet:
+görünüm Özet
     yaz \"tamam\"
 """
     )
