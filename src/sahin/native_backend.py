@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 
+from .adapter_source_ir import lower_source_with_adapter_metadata
 from .ir import IRFlow, IRInstruction, IRProgram
 from .member_source_provenance import build_member_source_provenance
 from .member_store_backend_validation import validate_backend_program_with_member_store
@@ -13,9 +14,13 @@ from .record_adapter_metadata import (
     ValidatedAdapterRecordMetadata,
     build_validated_adapter_record_metadata,
 )
-from .record_ir import lower_source_with_record_metadata
 from .record_metadata import RecordSchemaABI
 from .source_provenance import SourceProvenance, build_source_provenance
+from .structural_backend_validation import (
+    StructuralBackendValidationError,
+    validate_structural_metadata_for_backend,
+)
+from .structural_declaration_abi import StructuralDeclarationMetadata
 
 
 class NativeBackendError(ValueError):
@@ -32,6 +37,7 @@ class NativeAdapterPlan:
     flows: tuple[IRFlow, ...] = ()
     source_provenance: tuple[SourceProvenance, ...] = ()
     record_metadata: tuple[ValidatedAdapterRecordMetadata, ...] = ()
+    structural_declarations: tuple[StructuralDeclarationMetadata, ...] = ()
 
     @property
     def record_schemas(self) -> tuple[RecordSchemaABI, ...]:
@@ -52,6 +58,16 @@ class NativeAdapterPlan:
             payload["source_provenance"] = [json.loads(item.canonical()) for item in self.source_provenance]
         if self.record_metadata:
             payload["record_schemas"] = [json.loads(item.canonical_wire()) for item in self.record_metadata]
+        if self.structural_declarations:
+            payload["structural_declarations"] = [
+                {
+                    "body_arity": item.body_arity,
+                    "header_arity": item.header_arity,
+                    "kind": item.kind,
+                    "name": item.name,
+                }
+                for item in self.structural_declarations
+            ]
         return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
@@ -75,14 +91,17 @@ def build_native_plan(program: IRProgram, *, target: str = "native-sahin-safe") 
 
 
 def build_native_plan_from_source(source: str) -> NativeAdapterPlan:
-    """Gerçek frontend → Şahin IR + kayıt metadata → güvenli native adapter planını üretir."""
-    bundle = lower_source_with_record_metadata(source)
+    """Gerçek frontend → IR + metadata → güvenli native adapter planını üretir."""
+    bundle = lower_source_with_adapter_metadata(source)
     program = bundle.program
     plan = build_native_plan(program)
     try:
         record_metadata = build_validated_adapter_record_metadata(bundle.record_schemas)
-    except RecordAdapterMetadataError as exc:
-        raise NativeBackendError(f"Native record metadata doğrulaması başarısız: {exc}") from exc
+        structural_declarations = validate_structural_metadata_for_backend(
+            bundle.structural_declarations
+        )
+    except (RecordAdapterMetadataError, StructuralBackendValidationError) as exc:
+        raise NativeBackendError(f"Native metadata doğrulaması başarısız: {exc}") from exc
     return NativeAdapterPlan(
         ir_version=plan.ir_version,
         adapter_version=plan.adapter_version,
@@ -97,4 +116,5 @@ def build_native_plan_from_source(source: str) -> NativeAdapterPlan:
             *build_pipeline_source_provenance(source, program),
         ),
         record_metadata=record_metadata,
+        structural_declarations=structural_declarations,
     )
