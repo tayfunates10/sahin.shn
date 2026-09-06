@@ -12,7 +12,7 @@ Bu belge `Command` AST düğümünün Aşama 10 kapsamındaki gerçek davranış
 
 ## Açık ABI işi
 
-- `sakla`: backend-neutral veri-mutation ABI çekirdeği `DataMutationABI` ile tanımlanmıştır. Canonical parser biçimi `sakla <Name>` artık ayrı fail-closed lowering katmanıyla bu ABI'ye bağlanır; subject, arrow, body, ek argüman ve `Member`/hesaplanmış değer biçimleri reddedilir. Parser model metadata'sı taşımadığı için model adı yazımdan tahmin edilmez; semantik/type katmanı tarafından açıkça sağlanmak zorundadır. Host sınırından önce `veri:yaz` capability'si hâlâ zorunludur. Bu dilim gerçek host mutation yürütmesi veya runtime↔WASM/native equivalence anlamına gelmez.
+- `sakla`: backend-neutral veri-mutation ABI çekirdeği `DataMutationABI` ile tanımlanmıştır. Canonical parser biçimi `sakla <Name>` ayrı fail-closed lowering katmanıyla bu ABI'ye bağlanır. Ayrıca authoritative semantic/type sonucu artık `ResolvedDataBinding(value_slot, model)` sınırıyla taşınır; parsed slot ile semantic binding uyuşmuyorsa lowering fail-closed durur ve model adı yazımdan tahmin edilmez. Host sınırından önce `veri:yaz` capability'si hâlâ zorunludur. Bu dilim gerçek host mutation yürütmesi veya runtime↔WASM/native equivalence anlamına gelmez.
 - `cevap` ve diğer host/capability etkili komutlar: HTTP veya başka host motorlarının açık capability sözleşmesi olmadan backend opcode'una dönüştürülmez.
 - Gövdeli genel komutlar: referans runtime lexical blok çalıştırsa da UI/host anlamı ayrı motorlara aittir. Host semantiği ve capability modeli tanımlanmadan backend'de genel bir "çalıştır" opcode'u eklenmez.
 
@@ -21,12 +21,12 @@ Bu belge `Command` AST düğümünün Aşama 10 kapsamındaki gerçek davranış
 - Desteklenmeyen `Command` fail-closed `IRLoweringError` üretmeye devam eder.
 - `ver` ve `bitir` bağlam dışına kaçırılamaz.
 - `artır` / `azalt` immutable binding'i mutate edemez; member mutation değerlendirme sırası backend optimizasyonlarıyla değiştirilemez.
-- `sakla` için model metadata'sı slot adından türetilmez ve `veri:yaz` capability'si verilmeden host mutation sınırı geçilemez.
+- `sakla` için model metadata'sı slot adından türetilmez; authoritative semantic binding parsed slot ile eşleşmek zorundadır ve `veri:yaz` capability'si verilmeden host mutation sınırı geçilemez.
 - Yeni Command desteği capability/import yüzeyini dolaylı biçimde genişletemez.
 - Runtime davranışı bulunan bir komut için referans runtime ↔ WASM/native equivalence kanıtlanmadan kapsam tamamlandı sayılmaz.
 
 ## Sıradaki kabul dilimi
 
-`sakla` için ABI/capability çekirdeği ve parser/AST → mutation-ABI shape binding vardır. Sıradaki eksik dilim semantik/type çözümlemesinden authoritative model metadata'sını güvenli biçimde bu lowering hattına bağlamak ve ardından backend host mutation doğrulamasını eklemektir. Gerçek veri yazımı ve referans runtime ↔ WASM/native equivalence ayrı kapılar olarak tamamlanmadan `sakla` desteklenmiş sayılmaz.
+`sakla` için ABI/capability çekirdeği, parser/AST → mutation-ABI shape binding ve authoritative semantic metadata taşıma sınırı vardır. Sıradaki eksik dilim backend host mutation doğrulamasını bu sözleşmeye bağlamak; ardından gerçek veri yazımı ve referans runtime ↔ WASM/native equivalence kapılarını tamamlamaktır. Bu kapılar kapanmadan `sakla` desteklenmiş sayılmaz.
 
 Genel proje ilerlemesi Aşama 10 tamamen kapanana kadar `%87` olarak kalır.
