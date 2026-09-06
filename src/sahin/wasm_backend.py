@@ -8,7 +8,11 @@ from .member_source_provenance import build_member_source_provenance
 from .member_store_backend_validation import validate_backend_program_with_member_store
 from .pipeline_source_provenance import build_pipeline_source_provenance
 from .range_source_provenance import build_range_source_provenance
-from .record_adapter_metadata import RecordAdapterMetadataError, validate_adapter_record_schemas
+from .record_adapter_metadata import (
+    RecordAdapterMetadataError,
+    ValidatedAdapterRecordMetadata,
+    build_validated_adapter_record_metadata,
+)
 from .record_ir import lower_source_with_record_metadata
 from .record_metadata import RecordSchemaABI
 from .source_provenance import SourceProvenance, build_source_provenance
@@ -26,7 +30,12 @@ class WasmAdapterPlan:
     instructions: tuple[IRInstruction, ...]
     flows: tuple[IRFlow, ...] = ()
     source_provenance: tuple[SourceProvenance, ...] = ()
-    record_schemas: tuple[RecordSchemaABI, ...] = ()
+    record_metadata: tuple[ValidatedAdapterRecordMetadata, ...] = ()
+
+    @property
+    def record_schemas(self) -> tuple[RecordSchemaABI, ...]:
+        """Backward-compatible wire view backed by validated canonical metadata."""
+        return tuple(item.wire_schema for item in self.record_metadata)
 
     def canonical(self) -> str:
         payload = {
@@ -40,8 +49,8 @@ class WasmAdapterPlan:
             payload["flows"] = [json.loads(flow.canonical()) for flow in self.flows]
         if self.source_provenance:
             payload["source_provenance"] = [json.loads(item.canonical()) for item in self.source_provenance]
-        if self.record_schemas:
-            payload["record_schemas"] = [json.loads(item.canonical()) for item in self.record_schemas]
+        if self.record_metadata:
+            payload["record_schemas"] = [json.loads(item.canonical_wire()) for item in self.record_metadata]
         return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
@@ -67,7 +76,7 @@ def build_wasm_plan_from_source(source: str) -> WasmAdapterPlan:
     program = bundle.program
     plan = build_wasm_plan(program)
     try:
-        record_schemas = validate_adapter_record_schemas(bundle.record_schemas)
+        record_metadata = build_validated_adapter_record_metadata(bundle.record_schemas)
     except RecordAdapterMetadataError as exc:
         raise WasmBackendError(f"WASM record metadata doğrulaması başarısız: {exc}") from exc
     return WasmAdapterPlan(
@@ -82,5 +91,5 @@ def build_wasm_plan_from_source(source: str) -> WasmAdapterPlan:
             *build_range_source_provenance(source, program),
             *build_pipeline_source_provenance(source, program),
         ),
-        record_schemas=record_schemas,
+        record_metadata=record_metadata,
     )
