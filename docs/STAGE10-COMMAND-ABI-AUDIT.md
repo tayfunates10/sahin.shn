@@ -12,7 +12,7 @@ Bu belge `Command` AST düğümünün Aşama 10 kapsamındaki gerçek davranış
 
 ## Açık ABI işi
 
-- `sakla`: backend-neutral veri-mutation ABI çekirdeği `DataMutationABI` ile tanımlanmıştır. Canonical parser biçimi `sakla <Name>` ayrı fail-closed lowering katmanıyla bu ABI'ye bağlanır. Authoritative semantic/type sonucu `ResolvedDataBinding(value_slot, model)` sınırıyla taşınır; parsed slot ile semantic binding uyuşmuyorsa lowering fail-closed durur ve model adı yazımdan tahmin edilmez. Native/WASM backend host-mutation sınırı yalnız doğrulanmış ABI + açık `veri:yaz` capability ile `DataMutationBackendPlan` üretebilir; bilinmeyen backend reddedilir. Transaction-backed host execution katmanı artık yazmayı mevcut `DataEngine.transaction` sınırının içinde yürütür, host transaction `write` sözleşmesi yoksa fail-closed durur ve write/commit hatalarında rollback semantiğini korur. Bu hâlâ kalıcı bir production veri adapterı veya runtime↔WASM/native equivalence kanıtı anlamına gelmez.
+- `sakla`: backend-neutral veri-mutation ABI çekirdeği `DataMutationABI` ile tanımlanmıştır. Canonical parser biçimi `sakla <Name>` ayrı fail-closed lowering katmanıyla bu ABI'ye bağlanır. Authoritative semantic/type sonucu `ResolvedDataBinding(value_slot, model)` sınırıyla taşınır; parsed slot ile semantic binding uyuşmuyorsa lowering fail-closed durur ve model adı yazımdan tahmin edilmez. Native/WASM backend host-mutation sınırı yalnız doğrulanmış ABI + açık `veri:yaz` capability ile `DataMutationBackendPlan` üretebilir; bilinmeyen backend reddedilir. Transaction-backed host execution katmanı yazmayı mevcut `DataEngine.transaction` sınırında yürütür. Kalıcı SQLite adapterı model→table/key/field eşlemesini açık metadata ile zorunlu tutar, runtime değerinden tablo/anahtar/kolon tahmin etmez, parametreli sorgu/upsert kullanır ve adapter örnekleri arasında kalıcılığı doğrular. `sakla` yine de runtime↔WASM/native equivalence kanıtı tamamlanmadan desteklenmiş sayılmaz.
 - `cevap` ve diğer host/capability etkili komutlar: HTTP veya başka host motorlarının açık capability sözleşmesi olmadan backend opcode'una dönüştürülmez.
 - Gövdeli genel komutlar: referans runtime lexical blok çalıştırsa da UI/host anlamı ayrı motorlara aittir. Host semantiği ve capability modeli tanımlanmadan backend'de genel bir "çalıştır" opcode'u eklenmez.
 
@@ -24,11 +24,13 @@ Bu belge `Command` AST düğümünün Aşama 10 kapsamındaki gerçek davranış
 - `sakla` için model metadata'sı slot adından türetilmez; authoritative semantic binding parsed slot ile eşleşmek zorundadır ve `veri:yaz` capability'si verilmeden host mutation planı veya adapter erişimi oluşamaz.
 - `sakla` backend doğrulaması yalnız `native` ve `wasm` hedeflerini kabul eder; yeni IR opcode/import/capability yüzeyi açmaz.
 - `sakla` host yazımı yalnız mevcut transaction sınırında gerçekleşir; `write` sözleşmesi bulunmayan transaction rollback ile fail-closed kapanır.
+- SQLite adapterı yalnız önceden bildirilen model/table/key/field eşlemesini kabul eder; bilinmeyen model/alan, eksik anahtar ve güvenli olmayan identifier fail-closed reddedilir.
+- SQL değerleri placeholder parametreleriyle taşınır; runtime değerleri SQL identifier veya SQL metni olamaz.
 - Yeni Command desteği capability/import yüzeyini dolaylı biçimde genişletemez.
 - Runtime davranışı bulunan bir komut için referans runtime ↔ WASM/native equivalence kanıtlanmadan kapsam tamamlandı sayılmaz.
 
 ## Sıradaki kabul dilimi
 
-`sakla` için ABI/capability çekirdeği, parser/AST → mutation-ABI shape binding, authoritative semantic metadata, backend host-mutation doğrulaması ve transaction-backed host write sınırı vardır. Sıradaki eksik dilim bu sözleşmeyi gerçek kalıcı veri adapterına bağlamak ve ardından referans runtime ↔ WASM/native equivalence kapısını tamamlamaktır. Bu kapılar kapanmadan `sakla` desteklenmiş sayılmaz.
+`sakla` için ABI/capability çekirdeği, parser/AST → mutation-ABI shape binding, authoritative semantic metadata, backend host-mutation doğrulaması, transaction-backed host write ve kalıcı SQLite adapterı vardır. Sıradaki eksik dilim referans runtime ↔ WASM/native equivalence kapısını aynı kalıcı adapter davranışı üzerinde tamamlamaktır. Bu kapı kapanmadan `sakla` desteklenmiş sayılmaz.
 
 Genel proje ilerlemesi Aşama 10 tamamen kapanana kadar `%87` olarak kalır.
